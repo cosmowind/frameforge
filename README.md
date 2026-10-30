@@ -1,5 +1,8 @@
 # FrameForge
 
+[![CI](https://github.com/cosmowind/frameforge/actions/workflows/ci.yml/badge.svg)](https://github.com/cosmowind/frameforge/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
 **A local-first toolkit for turning raw camera footage into a tagged, searchable, publishable library.**
 
 Most camera-shoot tooling falls into one of two camps: heavyweight NLEs that need a
