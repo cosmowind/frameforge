@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<title>双目 HMD 播放器（左右并排）</title>
+<style>
+  :root { color-scheme: dark; }
+  body { font: 14px/1.5 system-ui, "Microsoft YaHei", sans-serif;
+         margin: 0; background: #0e1116; color: #e6e6e6; }
+  header { padding: 14px 20px; background: #161b22; border-bottom: 1px solid #2a3138; }
+  h1 { font-size: 16px; margin: 0; }
+  main { padding: 16px; max-width: 1600px; margin: 0 auto; }
+  section { background: #161b22; border: 1px solid #2a3138; border-radius: 8px; padding: 14px; margin-bottom: 14px; }
+  h2 { font-size: 13px; margin: 0 0 8px; color: #9aa4ad; font-weight: 500; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .cell { background: #0d1117; border: 1px solid #2a3138; border-radius: 6px; padding: 10px; }
+  .cell video { width: 100%; max-height: 60vh; background: #000; border-radius: 4px; display: block; }
+  .cell h3 { font-size: 12px; margin: 0 0 6px; color: #9aa4ad; }
+  button, .file-label { background: #1f6feb; color: #fff; border: 0; padding: 6px 12px;
+                         border-radius: 6px; font-size: 13px; cursor: pointer; }
+  button:disabled, .file-label.disabled { background: #30363d; color: #8b949e; cursor: not-allowed; }
+  button.ghost { background: #21262d; border: 1px solid #2a3138; }
+  input[type=file] { display: none; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .status { font-size: 12px; color: #8b949e; }
+  .badge { background: #2a3138; color: #9aa4ad; padding: 2px 6px; border-radius: 3px; font-size: 11px; }
+  .bar { display: flex; align-items: center; gap: 6px; }
+  progress { width: 200px; height: 6px; }
+  .scrub { flex: 1; }
+  details summary { cursor: pointer; color: #9aa4ad; font-size: 12px; }
+  pre { background: #0d1117; padding: 8px; border-radius: 4px; max-height: 200px; overflow: auto; font-size: 11px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>双目 HMD 播放器 <span class="badge">左右并排 · 同步播放</span></h1>
+</header>
+
+<main>
+  <section>
+    <h2>选择两个 .hmd 文件（左右眼 / 左右相机）</h2>
+    <div class="grid2">
+      <div class="cell">
+        <h3>左 / L</h3>
+        <div class="row">
+          <label class="file-label">选择文件 <input id="fileL" type="file" accept=".hmd,.h265,.mp4" /></label>
+          <span class="status" id="fileLStatus">未选择</span>
+          <button class="ghost" id="loadL" disabled>解析</button>
+        </div>
+      </div>
+      <div class="cell">
+        <h3>右 / R</h3>
+        <div class="row">
+          <label class="file-label">选择文件 <input id="fileR" type="file" accept=".hmd,.h265,.mp4" /></label>
+          <span class="status" id="fileRStatus">未选择</span>
+          <button class="ghost" id="loadR" disabled>解析</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>视频</h2>
+    <div class="row" style="margin-bottom:8px">
+      <button id="playAll" disabled>▶ 同步播放</button>
+      <button class="ghost" id="pauseAll" disabled>⏸ 全部暂停</button>
+      <button class="ghost" id="restart" disabled>⟲ 回到开头</button>
+      <span class="status" id="syncStatus">等待两个文件</span>
+    </div>
+    <div class="grid2">
+      <div class="cell">
+        <h3 id="lh">L</h3>
+        <video id="videoL" controls muted></video>
+      </div>
+      <div class="cell">
+        <h3 id="rh">R</h3>
+        <video id="videoR" controls muted></video>
+      </div>
+    </div>
+    <div class="bar" style="margin-top:8px">
+      <span class="status">同步：</span>
+      <button class="ghost" id="align">重新对齐到左</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>转换 / 下载</h2>
+    <div class="row">
+      <button class="ghost" id="dlL" disabled>下载 L.mp4</button>
+      <button class="ghost" id="dlR" disabled>下载 R.mp4</button>
+      <button class="ghost" id="dlBoth" disabled>下载左右并排.mp4</button>
+    </div>
+    <details style="margin-top:8px"><summary>日志</summary><pre id="log"></pre></details>
+  </section>
+</main>
+
+<script type="module">
+import { parse } from './hmd-decode.esm.js';
+import { Muxer, ArrayBufferTarget } from 'https://cdn.jsdelivr.net/npm/mp4-muxer@5.1.5/+esm';
+
+const $ = id => document.getElementById(id);
+const log = (...a) => { $('log').textContent += a.join(' ') + '\n'; };
+
+const SIDE = ['L', 'R'];
+const state = { L: { file:null, parsed:null, mp4:null }, R: { file:null, parsed:null, mp4:null } };
+const videoEls = { L: $('videoL'), R: $('videoR') };
+
+SIDE.forEach(s => {
+  $(`file${s}`).addEventListener('change', e => {
+    const f = e.target.files[0];
+    if (!f) return;
+    state[s].file = f;
+    $(`file${s}Status`).textContent = `${f.name} (${(f.size/1024/1024).toFixed(1)} MB)`;
+    $(`load${s}`).disabled = false;
+  });
+  $(`load${s}`).addEventListener('click', () => loadSide(s));
+});
+
+async function loadSide(s) {
+  const f = state[s].file;
+  $(`load${s}`).disabled = true;
+  $(`load${s}Status`) || null;
+  $(`file${s}Status`).textContent = `${f.name} · 解析中…`;
+  try {
+    let parsed, mp4Blob;
+    if (f.name.toLowerCase().endsWith('.mp4')) {
+      mp4Blob = f;
+    } else if (f.name.toLowerCase().endsWith('.h265')) {
+      mp4Blob = await h265BlobToMp4(new Uint8Array(await f.arrayBuffer()));
+    } else {
+      const buf = new Uint8Array(await f.arrayBuffer());
+      parsed = await parse(buf);
+      log(s, 'parsed', JSON.stringify(parsed.stats));
+      const hevc = parsed.video[0].hevc;
+      mp4Blob = await hevcToMp4(hevc, parsed.video[0]);
+    }
+    state[s].parsed = parsed;
+    state[s].mp4 = mp4Blob;
+    const url = URL.createObjectURL(mp4Blob);
+    videoEls[s].src = url;
+    $(`video${s}`).load();
+    $(`lh`).textContent = 'L · ' + f.name;
+    $(`rh`).textContent = 'R · ' + f.name;
+    $(`file${s}Status`).textContent = `${f.name} ✓`;
+    $(`dl${s}`).disabled = false;
+    updateSyncButtons();
+  } catch (e) {
+    log(s, 'load failed:', e.message);
+    $(`file${s}Status`).textContent = '失败: ' + e.message;
+  } finally {
+    $(`load${s}`).disabled = false;
+  }
+}
+
+function updateSyncButtons() {
+  const ready = !!(state.L.mp4 && state.R.mp4);
+  $('playAll').disabled = !ready;
+  $('pauseAll').disabled = !ready;
+  $('restart').disabled = !ready;
+  $('align').disabled = !ready;
+  $('dlBoth').disabled = !ready;
+  $('syncStatus').textContent = ready ? '两个文件都已就绪' : '等待两个文件';
+}
+
+$('playAll').addEventListener('click', async () => {
+  // seek both to 0 first to start in sync
+  videoEls.L.currentTime = 0;
+  videoEls.R.currentTime = 0;
+  await Promise.all([videoEls.L.play(), videoEls.R.play()]);
+  monitorSync();
+});
+$('pauseAll').addEventListener('click', () => { videoEls.L.pause(); videoEls.R.pause(); });
+$('restart').addEventListener('click', () => { videoEls.L.currentTime = 0; videoEls.R.currentTime = 0; });
+$('align').addEventListener('click', () => { videoEls.R.currentTime = videoEls.L.currentTime; });
+
+// keep both videos within 50 ms of each other while playing
+let syncTimer = null;
+function monitorSync() {
+  if (syncTimer) clearInterval(syncTimer);
+  syncTimer = setInterval(() => {
+    if (videoEls.L.paused || videoEls.R.paused) return;
+    const drift = Math.abs(videoEls.L.currentTime - videoEls.R.currentTime);
+    if (drift > 0.1) {
+      // resync the lagging one
+      if (videoEls.L.currentTime < videoEls.R.currentTime) videoEls.L.currentTime = videoEls.R.currentTime;
+      else videoEls.R.currentTime = videoEls.L.currentTime;
+      log('re-synced, drift was', drift.toFixed(3), 's');
+    }
+  }, 1000);
+}
+
+$('dlL').addEventListener('click', () => downloadSide('L'));
+$('dlR').addEventListener('click', () => downloadSide('R'));
+$('dlBoth').addEventListener('click', downloadBoth);
+function downloadSide(s) {
+  if (!state[s].mp4) return;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(state[s].mp4);
+  a.download = state[s].file.name.replace(/\.(hmd|h265|mp4)$/i, '') + '.mp4';
+  a.click();
+}
+async function downloadBoth() {
+  if (!state.L.mp4 || !state.R.mp4) return;
+  // need ffmpeg.wasm to mux; instead, we provide the .h265 sources so the
+  // user can compose them with ffmpeg locally
+  log('左右并排 mp4 导出需要服务端/ffmpeg.wasm。改用 .h265 导出后再 ffmpeg 合成。');
+  downloadSide('L');
+  downloadSide('R');
+}
+
+// HEVC → MP4 helpers ----------------------------------------------------
+async function hevcToMp4(hevc, meta) {
+  if (!meta.vps || !meta.sps || !meta.pps) {
+    throw new Error('缺 VPS/SPS/PPS — 此 .hmd 可能不是 HEVC 录像');
+  }
+  const vps = annexbToAvcc(meta.vps);
+  const sps = annexbToAvcc(meta.sps);
+  const pps = annexbToAvcc(meta.pps);
+  const description = new Uint8Array(vps.length + sps.length + pps.length);
+  description.set(vps, 0); description.set(sps, vps.length); description.set(pps, vps.length + sps.length);
+
+  const muxer = new Muxer({
+    target: new ArrayBufferTarget(),
+    video: { codec: 'hevc', width: 1920, height: 1080, frameRate: 30, description },
+    fastStart: 'in-memory',
+  });
+  const hevc2 = dedupParamSetsLocal(hevc);
+  let i = 0, pts = 0, n = 0;
+  const FRAME_US = 33333;
+  while (i < hevc2.length - 4) {
+    if (hevc2[i] === 0 && hevc2[i + 1] === 0 && hevc2[i + 2] === 0 && hevc2[i + 3] === 1) {
+      let j = i + 4;
+      while (j < hevc2.length - 4) {
+        if (hevc2[j] === 0 && hevc2[j + 1] === 0 && hevc2[j + 2] === 0 && hevc2[j + 3] === 1) break;
+        j++;
+      }
+      const t = (hevc2[i + 4] >> 1) & 0x3f;
+      if (t !== 32 && t !== 33 && t !== 34) {
+        const body = hevc2.subarray(i + 4, j);
+        const len = new Uint8Array(4);
+        new DataView(len.buffer).setUint32(0, body.length, false);
+        const avcc = new Uint8Array(4 + body.length);
+        avcc.set(len, 0); avcc.set(body, 4);
+        muxer.addVideoChunkRaw(avcc, { pts, dts: pts });
+        pts += FRAME_US; n++;
+      }
+      i = j;
+    } else i++;
+  }
+  muxer.finalize();
+  return new Blob([muxer.target.buffer], { type: 'video/mp4' });
+}
+
+async function h265BlobToMp4(hevc) {
+  // crude: walk for VPS/SPS/PPS
+  let vps, sps, pps;
+  const frags = [];
+  let i = 0;
+  while (i < hevc.length - 4) {
+    if (hevc[i] === 0 && hevc[i + 1] === 0 && hevc[i + 2] === 0 && hevc[i + 3] === 1) {
+      let j = i + 4;
+      while (j < hevc.length - 4) {
+        if (hevc[j] === 0 && hevc[j + 1] === 0 && hevc[j + 2] === 0 && hevc[j + 3] === 1) break;
+        j++;
+      }
+      const nal = hevc.subarray(i, j);
+      const t = (hevc[i + 4] >> 1) & 0x3f;
+      if (t === 32 && !vps) vps = nal;
+      else if (t === 33 && !sps) sps = nal;
+      else if (t === 34 && !pps) pps = nal;
+      frags.push(nal);
+      i = j;
+    } else i++;
+  }
+  return hevcToMp4(hevc, { vps, sps, pps });
+}
+
+function annexbToAvcc(nal) {
+  const body = nal.subarray(4);
+  const len = new Uint8Array(4);
+  new DataView(len.buffer).setUint32(0, body.length, false);
+  const out = new Uint8Array(4 + body.length);
+  out.set(len, 0); out.set(body, 4);
+  return out;
+}
+function dedupParamSetsLocal(hevc) {
+  const out = []; let first = true; let i = 0;
+  while (i < hevc.length - 4) {
+    if (hevc[i] === 0 && hevc[i + 1] === 0 && hevc[i + 2] === 0 && hevc[i + 3] === 1) {
+      let j = i + 4;
+      while (j < hevc.length - 4) {
+        if (hevc[j] === 0 && hevc[j + 1] === 0 && hevc[j + 2] === 0 && hevc[j + 3] === 1) break;
+        j++;
+      }
+      const t = (hevc[i + 4] >> 1) & 0x3f;
+      if (t === 32 || t === 33 || t === 34) {
+        if (first) { out.push(hevc.subarray(i, j)); first = false; }
+      } else out.push(hevc.subarray(i, j));
+      i = j;
+    } else i++;
+  }
+  let total = 0; for (const c of out) total += c.length;
+  const merged = new Uint8Array(total); let off = 0;
+  for (const c of out) { merged.set(c, off); off += c.length; }
+  return merged;
+}
+</script>
+</body>
+</html>

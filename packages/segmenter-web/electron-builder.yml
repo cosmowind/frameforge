@@ -1,0 +1,39 @@
+appId: com.video-segmentation-tool
+productName: 视频分割工具
+directories:
+  output: C:/temp/video-cut-release
+  buildResources: build
+files:
+  - dist/**/*
+  - "!node_modules/**/*"
+  - package.json
+asar: true
+asarUnpack:
+  - "**/*.node"
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: build/icon.ico
+  signAndEditExecutable: false
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: 视频分割工具
+mac:
+  target:
+    - target: dmg
+      arch:
+        - x64
+        - arm64
+  icon: build/icon.icns
+linux:
+  target:
+    - target: AppImage
+      arch:
+        - x64
+  icon: build/icon.png

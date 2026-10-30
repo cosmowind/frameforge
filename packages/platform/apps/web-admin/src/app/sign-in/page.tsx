@@ -1,0 +1,26 @@
+// Clerk 登录占位（Phase 0 dev 模式无 Clerk）
+export default function Page() {
+  return (
+    <main className="grid min-h-screen place-items-center bg-slate-100">
+      <div className="max-w-md rounded border border-slate-200 bg-white p-8 text-center">
+        <h1 className="text-xl font-semibold">登录</h1>
+        <p className="mt-2 text-sm text-slate-500">
+          Phase 0 dev 模式：无 Clerk 鉴权。
+        </p>
+        <p className="mt-2 text-sm text-slate-500">
+          Phase 1 用户在{' '}
+          <a className="text-blue-600 underline" href="https://dashboard.clerk.com">
+            dashboard.clerk.com
+          </a>{' '}
+          申请 keys 后启用。
+        </p>
+        <a
+          href="/"
+          className="mt-6 inline-block rounded bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700"
+        >
+          进入后台（dev 模式免登录）
+        </a>
+      </div>
+    </main>
+  )
+}

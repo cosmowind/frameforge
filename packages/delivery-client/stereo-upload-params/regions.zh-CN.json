@@ -1,0 +1,76 @@
+{
+  "_note": "SYNTHETIC SAMPLE DATA - structured regions by country code.",
+  "values": {
+    "US": [
+      {
+        "value": "California",
+        "label": {
+          "en": "California",
+          "zh-CN": "加利福尼亚州"
+        }
+      },
+      {
+        "value": "Texas",
+        "label": {
+          "en": "Texas",
+          "zh-CN": "德克萨斯州"
+        }
+      },
+      {
+        "value": "Washington",
+        "label": {
+          "en": "Washington",
+          "zh-CN": "华盛顿州"
+        }
+      }
+    ],
+    "CN": [
+      {
+        "value": "示例省",
+        "label": {
+          "en": "示例省",
+          "zh-CN": "示例省"
+        }
+      },
+      {
+        "value": "示例市",
+        "label": {
+          "en": "示例市",
+          "zh-CN": "示例市"
+        }
+      }
+    ],
+    "JP": [
+      {
+        "value": "Tokyo",
+        "label": {
+          "en": "Tokyo",
+          "zh-CN": "东京都"
+        }
+      },
+      {
+        "value": "Osaka",
+        "label": {
+          "en": "Osaka",
+          "zh-CN": "大阪府"
+        }
+      }
+    ],
+    "GB": [
+      {
+        "value": "England",
+        "label": {
+          "en": "England",
+          "zh-CN": "英格兰"
+        }
+      },
+      {
+        "value": "Scotland",
+        "label": {
+          "en": "Scotland",
+          "zh-CN": "苏格兰"
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,207 @@
+{
+  "$schema": "./taxonomy.schema.json",
+  "version": "1.0.0",
+  "lastUpdated": "2026-01-01",
+  "source": "frameforge/samples/synthetic",
+  "note": "SYNTHETIC SAMPLE DATA - flat leaf index derived from scene-categories.zh-CN.json.",
+  "scenes": [
+    {
+      "id": "workbench",
+      "label": {
+        "en": "Workbench",
+        "zh-CN": "工作台"
+      },
+      "subcategories": [
+        {
+          "id": "workbench_assembly",
+          "label": {
+            "en": "Assembly",
+            "zh-CN": "装配"
+          }
+        },
+        {
+          "id": "workbench_inspection",
+          "label": {
+            "en": "Quality inspection",
+            "zh-CN": "质检"
+          }
+        },
+        {
+          "id": "workbench_tooling",
+          "label": {
+            "en": "Tooling change",
+            "zh-CN": "换模"
+          }
+        }
+      ]
+    },
+    {
+      "id": "production_line",
+      "label": {
+        "en": "Production line",
+        "zh-CN": "生产线"
+      },
+      "subcategories": [
+        {
+          "id": "line_press_fit",
+          "label": {
+            "en": "Press fitting",
+            "zh-CN": "压装"
+          }
+        },
+        {
+          "id": "line_packaging",
+          "label": {
+            "en": "Packaging",
+            "zh-CN": "包装"
+          }
+        },
+        {
+          "id": "line_palletizing",
+          "label": {
+            "en": "Palletizing",
+            "zh-CN": "码垛"
+          }
+        }
+      ]
+    },
+    {
+      "id": "lab",
+      "label": {
+        "en": "Laboratory",
+        "zh-CN": "实验室"
+      },
+      "subcategories": [
+        {
+          "id": "lab_sample_prep",
+          "label": {
+            "en": "Sample preparation",
+            "zh-CN": "样品制备"
+          }
+        },
+        {
+          "id": "lab_measurement",
+          "label": {
+            "en": "Measurement",
+            "zh-CN": "测量"
+          }
+        }
+      ]
+    },
+    {
+      "id": "warehouse",
+      "label": {
+        "en": "Warehouse",
+        "zh-CN": "仓储"
+      },
+      "subcategories": [
+        {
+          "id": "warehouse_picking",
+          "label": {
+            "en": "Picking",
+            "zh-CN": "拣货"
+          }
+        },
+        {
+          "id": "warehouse_inbound",
+          "label": {
+            "en": "Inbound receiving",
+            "zh-CN": "收货"
+          }
+        }
+      ]
+    }
+  ],
+  "leaves": [
+    {
+      "id": "workbench_assembly",
+      "label": {
+        "en": "Assembly",
+        "zh-CN": "装配"
+      },
+      "parent": "workbench",
+      "path": "workbench.workbench_assembly"
+    },
+    {
+      "id": "workbench_inspection",
+      "label": {
+        "en": "Quality inspection",
+        "zh-CN": "质检"
+      },
+      "parent": "workbench",
+      "path": "workbench.workbench_inspection"
+    },
+    {
+      "id": "workbench_tooling",
+      "label": {
+        "en": "Tooling change",
+        "zh-CN": "换模"
+      },
+      "parent": "workbench",
+      "path": "workbench.workbench_tooling"
+    },
+    {
+      "id": "line_press_fit",
+      "label": {
+        "en": "Press fitting",
+        "zh-CN": "压装"
+      },
+      "parent": "production_line",
+      "path": "production_line.line_press_fit"
+    },
+    {
+      "id": "line_packaging",
+      "label": {
+        "en": "Packaging",
+        "zh-CN": "包装"
+      },
+      "parent": "production_line",
+      "path": "production_line.line_packaging"
+    },
+    {
+      "id": "line_palletizing",
+      "label": {
+        "en": "Palletizing",
+        "zh-CN": "码垛"
+      },
+      "parent": "production_line",
+      "path": "production_line.line_palletizing"
+    },
+    {
+      "id": "lab_sample_prep",
+      "label": {
+        "en": "Sample preparation",
+        "zh-CN": "样品制备"
+      },
+      "parent": "lab",
+      "path": "lab.lab_sample_prep"
+    },
+    {
+      "id": "lab_measurement",
+      "label": {
+        "en": "Measurement",
+        "zh-CN": "测量"
+      },
+      "parent": "lab",
+      "path": "lab.lab_measurement"
+    },
+    {
+      "id": "warehouse_picking",
+      "label": {
+        "en": "Picking",
+        "zh-CN": "拣货"
+      },
+      "parent": "warehouse",
+      "path": "warehouse.warehouse_picking"
+    },
+    {
+      "id": "warehouse_inbound",
+      "label": {
+        "en": "Inbound receiving",
+        "zh-CN": "收货"
+      },
+      "parent": "warehouse",
+      "path": "warehouse.warehouse_inbound"
+    }
+  ]
+}

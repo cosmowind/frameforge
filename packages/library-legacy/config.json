@@ -1,0 +1,127 @@
+{
+  "scanDirectory": "/media\\0530",
+  "deviceMonitor": {
+    "enabled": true,
+    "destinationBase": "/media\\0530",
+    "excludeDrives": [
+      "C",
+      "D"
+    ],
+    "scanInterval": 60,
+    "deleteAfterCopy": true,
+    "videoPatterns": [
+      "DCIM",
+      "MP_ROOT",
+      "PRIVATE"
+    ],
+    "subdirPatterns": [
+      "DJI_001",
+      "DJI_002",
+      "DJI_003",
+      "DJI001",
+      "DJI002",
+      "DJI003",
+      "100GOPRO",
+      "GOPRO",
+      ""
+    ]
+  },
+  "fieldnames": [
+    "path",
+    "location_status",
+    "scan_date",
+    "original_history_date",
+    "work_content_cn",
+    "work_content_en",
+    "category",
+    "recorder",
+    "upload_feasibility",
+    "uploaded",
+    "extra_description",
+    "score",
+    "duration"
+  ],
+  "columnLabels": {
+    "path": "视频路径",
+    "location_status": "状态",
+    "scan_date": "录入日期",
+    "original_history_date": "原始日期",
+    "work_content_cn": "工作内容(中文)",
+    "work_content_en": "工作内容(英文)",
+    "category": "类别",
+    "recorder": "录制者",
+    "upload_feasibility": "上传可行性",
+    "uploaded": "已上传",
+    "extra_description": "额外描述",
+    "score": "得分",
+    "duration": "时长"
+  },
+  "columnVisibility": {
+    "path": true,
+    "location_status": false,
+    "scan_date": true,
+    "original_history_date": false,
+    "work_content_cn": true,
+    "work_content_en": true,
+    "category": false,
+    "recorder": false,
+    "upload_feasibility": false,
+    "uploaded": true,
+    "extra_description": false,
+    "score": false,
+    "duration": true
+  },
+  "columnTypes": {
+    "path": "path",
+    "location_status": "select-location",
+    "scan_date": "input",
+    "original_history_date": "input",
+    "work_content_cn": "input",
+    "work_content_en": "input",
+    "category": "input",
+    "recorder": "input",
+    "upload_feasibility": "select-feasibility",
+    "uploaded": "select-yesno",
+    "extra_description": "input",
+    "score": "input",
+    "duration": "duration"
+  },
+  "columnWidths": {
+    "path": 244,
+    "location_status": 80,
+    "scan_date": 127,
+    "original_history_date": 100,
+    "work_content_cn": 320,
+    "work_content_en": 647,
+    "category": 100,
+    "recorder": 100,
+    "upload_feasibility": 100,
+    "uploaded": 80,
+    "extra_description": 200,
+    "score": 122,
+    "duration": 80
+  },
+  "columnOrder": [
+    "path",
+    "location_status",
+    "scan_date",
+    "original_history_date",
+    "work_content_cn",
+    "work_content_en",
+    "category",
+    "recorder",
+    "upload_feasibility",
+    "uploaded",
+    "extra_description",
+    "score",
+    "duration"
+  ],
+  "sortColumn": "scan_date",
+  "sortDirection": "asc",
+  "translate": {
+    "apiKey": "",
+    "model": "MiniMax-M2.7",
+    "apiBase": "https://api.minimaxi.com/anthropic/v1/messages"
+  },
+  "_note": "SYNTHETIC SAMPLE CONFIG. The upstream project kept a live provider key under translate.apiKey; it was removed before publication. Supply your own key via the environment."
+}

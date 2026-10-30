@@ -1,0 +1,14 @@
+# Clerk cookies for publish.example.com vendor portal.
+#
+# 1. Copy this file to cookie.txt:    cp cookie.txt.template cookie.txt
+# 2. Open https://publish.example.com/vendors, sign in.
+# 3. DevTools → Application → Cookies → https://publish.example.com
+# 4. Copy the THREE cookie values below into the corresponding lines.
+# 5. Save the file. The script reads it before every API call.
+#
+# Lines starting with # are ignored. Values can be unquoted, quoted, or
+# with the cookie name prefix ("__session=..."). Don't share this file.
+
+SESSION=<paste __session value here — short-lived (~5 min) JWT>
+CLIENT=<paste __client value here — long-lived rotating token>
+CLIENT_UAT=<paste __client_uat number here — unix timestamp>

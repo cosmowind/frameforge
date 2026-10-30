@@ -1,0 +1,239 @@
+# WCS 中央文档索引（Manifest）
+# ─────────────────────────────────────────────────────────────
+# 本文件是 video-sort-package 的 WCS 中枢。
+# AI 启动时只读本文件（~2KB），按本文件指引按需加载 docs/*，
+# 避免每次会话读 30KB Markdown.
+
+# ─────────────────────────────────────────────────────────────
+# 0. 项目全局信息
+# ─────────────────────────────────────────────────────────────
+project_overview:
+  summary: |
+    Flask + 单页 Web 应用：扫描 mp4 / HMD 视频文件夹、在网页表格里编辑元数据、
+    WebCodecs 实时预览 HMD 双目流、按字段批量上传到 publish.example.com。
+    数据暂存 CSV（13→20 列），未来可迁 SQLite/MySQL。
+
+  key_code_refs:
+    - path: app.py
+      purpose: Flask 后端 + 全部 REST 端点（CSV 读写 / HMD 扫描 / 流式 / 注册）
+    - path: templates/index.html
+      purpose: 单页前端：表格编辑 + MP4/HMD 双模式预览
+    - path: templates/hmd_preview.html
+      purpose: 独立 HMD 双目预览页（带 4 阶段进度 UI + splitStereo）
+    - path: static/hmd/hmd-decode.esm.js
+      purpose: HMD 容器解析器（ESM 版，浏览器端）
+    - path: static/hmd/hmd-player-core.js
+      purpose: WebCodecs 播放封装（openHmdSession API）
+    - path: device_monitor.py
+      purpose: USB/SD 卡自动监听 + 文件复制 + CSV 登记
+    - path: config.json
+      purpose: 列定义 / 列类型 / 列宽 / 列顺序 / 扫描目录
+
+  quick_conventions:
+    - 测试约定: 暂无单元测试；用 curl/Python 脚本做集成测试
+    - 提交约定: 单 PR 聚焦一个能力，避免混改
+    - 分支约定: 默认 main；本地直接开发，无 PR 流程
+    - 文档约定: WCS v2.0 中央 manifest + 10 项基线 docs/
+
+# ─────────────────────────────────────────────────────────────
+# 1. 文档清单
+# ─────────────────────────────────────────────────────────────
+documents:
+
+  - path: README.md
+    purpose: 项目入口、快速上手、文档导航
+    size_kb: 4
+    tier: 1
+    update_trigger: 用户可见行为变化 / 文档索引变化
+
+  - path: docs/project_status.md
+    purpose: 技术栈、已实现模块、能力快照、运行状态、已知限制
+    size_kb: 4
+    tier: 2
+    update_trigger: 新增/删除模块、架构变更、状态变化
+
+  - path: docs/structure.md
+    purpose: 目录树 + 文件/模块职责映射
+    size_kb: 2
+    tier: 2
+    update_trigger: 文件/模块结构变化
+
+  - path: docs/dev_plan.md
+    purpose: 路线图 + 进行中 + 待办任务
+    size_kb: 3
+    tier: 2
+    update_trigger: 任务完成、计划调整
+
+  - path: docs/dev_log.md
+    purpose: 实现记录、验证依据、学习复盘
+    size_kb: 5
+    tier: 2
+    update_trigger: 每次提交、重大变更后
+
+  - path: docs/error_book.md
+    purpose: 缺陷根因 + 失败尝试 + 最终修复 + 预防要点
+    size_kb: 4
+    tier: 2
+    update_trigger: 缺陷修复后
+
+  - path: docs/features.md
+    purpose: 已实现能力索引（按模块/领域）
+    size_kb: 3
+    tier: 2
+    update_trigger: 新增/更新/删除能力
+
+  - path: docs/CODING_STANDARDS.md
+    purpose: 代码规范纲领（命名、结构、CSV、提交、文档同步策略）
+    size_kb: 5
+    tier: 2
+    update_trigger: 规范修订
+
+  - path: docs/workflow.md
+    purpose: 执行流程约定 + 质量门禁
+    size_kb: 3
+    tier: 2
+    update_trigger: 流程变更
+
+  - path: docs/prompt.txt
+    purpose: 用户原始需求 + 协作约束
+    size_kb: 2
+    tier: 3
+    update_trigger: 协作约束变化
+
+  # ── 项目特定文档（非 WCS 基线，存档参考） ──
+  - path: docs/EXPORT.md
+    purpose: 导出 TXT 功能旧文档（归档）
+    size_kb: 2
+    tier: 3
+    update_trigger: 不再维护
+  - path: docs/UPLOAD_DEVPLAN.md
+    purpose: 上传器开发计划（归档，待 frameforge 规范）
+    size_kb: 3
+    tier: 3
+    update_trigger: 不再维护
+  - path: docs/README.md
+    purpose: 旧 docs 目录 README（归档）
+    size_kb: 1
+    tier: 3
+    update_trigger: 不再维护
+  - path: docs/minimax接入参考.txt
+    purpose: 第三方接入参考笔记（个人）
+    size_kb: 1
+    tier: 3
+    update_trigger: 不再维护
+
+# ─────────────────────────────────────────────────────────────
+# 2. 加载策略
+# ─────────────────────────────────────────────────────────────
+tiers:
+  tier_1_always:
+    description: 始终加载
+    contents:
+      - wcs-manifest.yaml
+
+  tier_2_task_related:
+    description: 按任务类型加载（见 task_mapping）
+    selection_rule: |
+      判断任务类型 → 仅加载该类型 docs → 默认不读 tier_3
+
+  tier_3_on_demand:
+    description: AI 明确需要细节时才读
+    selection_rule: |
+      - tier_2 不够时
+      - 用户明确要求
+      - 文档中链接引用到的细节
+
+# ─────────────────────────────────────────────────────────────
+# 3. 任务类型 → 文档映射
+# ─────────────────────────────────────────────────────────────
+task_mapping:
+
+  new_feature:
+    label: 新功能
+    required_docs:
+      - docs/structure.md
+      - docs/features.md
+      - docs/CODING_STANDARDS.md
+      - docs/workflow.md
+    optional_docs:
+      - docs/dev_plan.md
+      - docs/project_status.md
+
+  bug_fix:
+    label: 修缺陷
+    required_docs:
+      - docs/error_book.md
+      - docs/dev_log.md
+      - docs/CODING_STANDARDS.md
+    optional_docs:
+      - docs/features.md
+
+  handoff:
+    label: 接手/交接
+    required_docs:
+      - docs/dev_plan.md
+      - docs/dev_log.md
+      - docs/structure.md
+    optional_docs:
+      - docs/error_book.md
+      - docs/project_status.md
+
+  review:
+    label: 审查/PR
+    required_docs:
+      - docs/CODING_STANDARDS.md
+      - docs/features.md
+      - docs/workflow.md
+
+  audit:
+    label: 审计/对齐检查
+    required_docs:
+      - docs/project_status.md
+      - docs/structure.md
+      - docs/features.md
+      - docs/error_book.md
+
+# ─────────────────────────────────────────────────────────────
+# 4. 上下文预算
+# ─────────────────────────────────────────────────────────────
+budget:
+  always: 2        # KB，manifest 自身
+  typical_task: 12 # KB，tier_2 平均加载
+  worst_case: 30   # KB，全部 docs
+  savings_vs_full: "60-90% vs 全部 docs 直接加载"
+
+# ─────────────────────────────────────────────────────────────
+# 5. 自迭代规则
+# ─────────────────────────────────────────────────────────────
+self_iteration:
+  - rule: consumer_only
+    description: WCS 不引入运行时依赖；用 ripgrep / Read / Bash 即可
+  - rule: structural_over_narrative
+    description: 表格/列表优先于段落；schema 优先于描述
+  - rule: on_demand_loading
+    description: 按需加载默认；不"为了安全"全量读
+  - rule: manifest_is_source_of_truth
+    description: 改 docs 前先更新 manifest；删 doc 先从 manifest 移除
+  - rule: chinese_only
+    description: 中文为正本；旧 README 是英文版快照不再同步
+
+# ─────────────────────────────────────────────────────────────
+# 6. 外部工具协作
+# ─────────────────────────────────────────────────────────────
+external_tools:
+  codegraph:
+    role: docs → 代码的事实桥
+    precedence: |
+      1. codegraph_search / codegraph_files 优先
+      2. 查不到时降级为 Read
+  rtk:
+    role: shell 输出 token 优化
+    usage: 跑测试 / 目录扫描时用 mcp__rtk-mcp__run_command
+
+# ─────────────────────────────────────────────────────────────
+# 7. 元信息
+# ─────────────────────────────────────────────────────────────
+meta:
+  version: 2.0
+  schema_version: 1
+  primary_edition: wcs-cn (中文为正本)

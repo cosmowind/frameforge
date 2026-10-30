@@ -1,0 +1,439 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<title>HMD 播放器（单文件版）</title>
+<style>
+  :root { color-scheme: dark; }
+  body { font: 14px/1.5 system-ui, "Microsoft YaHei", sans-serif;
+         margin: 0; background: #0e1116; color: #e6e6e6; }
+  header { padding: 14px 20px; background: #161b22; border-bottom: 1px solid #2a3138; }
+  h1 { font-size: 16px; margin: 0; }
+  main { display: grid; gap: 16px; padding: 16px; max-width: 1400px; margin: 0 auto; }
+  section { background: #161b22; border: 1px solid #2a3138; border-radius: 8px; padding: 14px; }
+  h2 { font-size: 13px; margin: 0 0 8px; color: #9aa4ad; font-weight: 500; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  button, .file-label { background: #1f6feb; color: #fff; border: 0; padding: 6px 12px;
+                         border-radius: 6px; font-size: 13px; cursor: pointer; }
+  button:disabled, .file-label.disabled { background: #30363d; color: #8b949e; cursor: not-allowed; }
+  button.ghost { background: #21262d; border: 1px solid #2a3138; }
+  input[type=file] { display: none; }
+  .status { font-size: 12px; color: #8b949e; }
+  progress { width: 220px; height: 6px; }
+  canvas, video { width: 100%; max-height: 70vh; background: #000;
+                  border-radius: 4px; display: block; }
+  .badge { background: #2a3138; color: #9aa4ad; padding: 2px 6px; border-radius: 3px; font-size: 11px; }
+  details summary { cursor: pointer; color: #9aa4ad; font-size: 12px; }
+  pre { background: #0d1117; padding: 8px; border-radius: 4px; max-height: 240px; overflow: auto; font-size: 11px; white-space: pre-wrap; }
+  .warn { background: #3a1f1f; border-left: 3px solid #f85149; padding: 8px 10px; border-radius: 4px; font-size: 12px; }
+  .ok   { background: #1f3a23; border-left: 3px solid #3fb950; padding: 8px 10px; border-radius: 4px; font-size: 12px; }
+  .info { background: #1c2230; border-left: 3px solid #58a6ff; padding: 8px 10px; border-radius: 4px; font-size: 12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>HMD 播放器 <span class="badge">单文件 · 直接读 .hmd</span></h1>
+</header>
+
+<main>
+  <section>
+    <h2>1. 选择 .hmd 文件</h2>
+    <div class="row">
+      <label class="file-label" id="pickLabel">选择 .hmd 文件 <input id="fileIn" type="file" accept=".hmd,.h265,.mp4" /></label>
+      <span class="status" id="fileStatus">未选择</span>
+      <button class="ghost" id="loadBtn" disabled>解析 & 加载</button>
+      <span class="status" id="loadStatus"></span>
+    </div>
+    <div id="msgBox" style="margin-top:8px"></div>
+  </section>
+
+  <section>
+    <h2>2. 视频</h2>
+    <div class="row" style="margin-bottom:8px">
+      <button id="playBtn" disabled>▶ 播放</button>
+      <button class="ghost" id="pauseBtn" disabled>⏸ 暂停</button>
+      <button class="ghost" id="restartBtn" disabled>⟲ 回到开头</button>
+      <span class="status" id="playerStatus">等待加载</span>
+    </div>
+    <canvas id="canvas"></canvas>
+  </section>
+
+  <section>
+    <h2>3. 导出</h2>
+    <div class="row">
+      <button class="ghost" id="dlMp4" disabled>下载 .mp4 (用 ffmpeg 命令更稳)</button>
+      <button class="ghost" id="dlHevc" disabled>下载 .h265 (原始流)</button>
+      <button class="ghost" id="dlImu" disabled>下载 IMU (JSON)</button>
+    </div>
+    <details style="margin-top:8px" open><summary>解析日志</summary><pre id="log"></pre></details>
+  </section>
+</main>
+
+<script>
+"use strict";
+
+const $ = id => document.getElementById(id);
+const logEl = $('log');
+const log = (...a) => { logEl.textContent += a.join(' ') + '\n'; logEl.scrollTop = logEl.scrollHeight; };
+const showMsg = (txt, kind) => { $('msgBox').innerHTML = `<div class="${kind || 'info'}">${txt}</div>`; };
+
+// =====================================================================
+// INLINED HMD PARSER
+// =====================================================================
+const MAGIC = [0x55, 0x4d, 0x49, 0x33];
+const IMU_TYPE = 0x59;
+const SIZE_FIELD_BIAS = 8;
+const COMMON_HEADER_LEN = 24;
+
+function findPackets(buf) {
+  const out = [];
+  let p = 0;
+  const dv = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+  while (p + 8 <= buf.length) {
+    if (buf[p] === MAGIC[0] && buf[p+1] === MAGIC[1] && buf[p+2] === MAGIC[2] && buf[p+3] === MAGIC[3]) {
+      const sizeField = dv.getUint32(p + 4, true);
+      const total = sizeField + SIZE_FIELD_BIAS;
+      if (total < 16 || total > 16 * 1024 * 1024) { p++; continue; }
+      if (p + total > buf.length) { p++; continue; }
+      out.push({ offset: p, type: buf[p + 4], size: sizeField, total });
+      p += total;
+    } else { p++; }
+  }
+  return out;
+}
+
+function concatBytes(arrs) {
+  let t = 0; for (const a of arrs) t += a.length;
+  const o = new Uint8Array(t); let p = 0;
+  for (const a of arrs) { o.set(a, p); p += a.length; }
+  return o;
+}
+
+function splitNalsAnnexb(hevc) {
+  // Returns array of {nalType, data: Uint8Array (with start code)}
+  const out = []; let i = 0;
+  while (i < hevc.length - 4) {
+    if (hevc[i] === 0 && hevc[i+1] === 0 && hevc[i+2] === 0 && hevc[i+3] === 1) {
+      let j = i + 4;
+      while (j < hevc.length - 4) {
+        if (hevc[j] === 0 && hevc[j+1] === 0 && hevc[j+2] === 0 && hevc[j+3] === 1) break;
+        j++;
+      }
+      // NAL type byte is at hevc[i+4] (after the 4-byte start code)
+      const nalType = (hevc[i+4] >> 1) & 0x3f;
+      out.push({ nalType, data: hevc.subarray(i, j) });
+      i = j;
+    } else i++;
+  }
+  return out;
+}
+
+async function parseUmi(input, onProgress) {
+  const buf = input instanceof Uint8Array ? input : new Uint8Array(input);
+  onProgress = onProgress || (() => {});
+  const packets = findPackets(buf);
+  const stats = { packets: packets.length, imu: 0, video: 0, skipped: 0 };
+  // Store per-stream concat'd HEVC + first VPS/SPS/PPS
+  const hevcChunks = [];
+  const params = { vps: null, sps: null, pps: null };
+  const imu = [];
+
+  for (let i = 0; i < packets.length; i++) {
+    if ((i & 0x3fff) === 0) await new Promise(r => setTimeout(r, 0));
+    if ((i & 0xfff) === 0) onProgress(i / packets.length);
+    const pkt = packets[i];
+    const p = pkt.offset, type = pkt.type, pktEnd = p + pkt.total;
+    if (type === IMU_TYPE && pkt.total === 97) {
+      const seq = buf[p+16] | (buf[p+17]<<8) | (buf[p+18]<<16) | (buf[p+19]<<24);
+      const tLow = buf[p+20] | (buf[p+21]<<8) | (buf[p+22]<<16);
+      imu.push({ seq, t_us: tLow, raw: buf.subarray(p + COMMON_HEADER_LEN, pktEnd) });
+      stats.imu++;
+      continue;
+    }
+    // Find start code within 32 bytes after 24-byte header
+    let payloadStart = -1;
+    const scanEnd = Math.min(p + COMMON_HEADER_LEN + 32, pktEnd - 3);
+    for (let k = p + COMMON_HEADER_LEN; k < scanEnd; k++) {
+      if (buf[k] === 0 && buf[k+1] === 0 && buf[k+2] === 0 && buf[k+3] === 1) { payloadStart = k; break; }
+    }
+    if (payloadStart < 0) { stats.skipped++; continue; }
+    const hevcChunk = buf.subarray(payloadStart, pktEnd);
+    hevcChunks.push(hevcChunk);
+    // CRITICAL: NAL type is at chunk[4], not [0] (chunk[0..3] is start code)
+    const nalType = (hevcChunk[4] >> 1) & 0x3f;
+    if (nalType === 32 && !params.vps) params.vps = hevcChunk;
+    else if (nalType === 33 && !params.sps) params.sps = hevcChunk;
+    else if (nalType === 34 && !params.pps) params.pps = hevcChunk;
+    stats.video++;
+  }
+  let total = 0; for (const c of hevcChunks) total += c.length;
+  const hevc = new Uint8Array(total); let off = 0;
+  for (const c of hevcChunks) { hevc.set(c, off); off += c.length; }
+  onProgress(1);
+  return { video: [{ packets: hevcChunks.length, hevc, vps: params.vps, sps: params.sps, pps: params.pps }], imu, stats };
+}
+
+// Dedup: keep the FIRST VPS+SPS+PPS, drop duplicates from later packets
+function dedupParamSets(hevc) {
+  const nals = splitNalsAnnexb(hevc);
+  const out = [];
+  let vpsKept = false, spsKept = false, ppsKept = false;
+  for (const nal of nals) {
+    if (nal.nalType === 32 && vpsKept) continue;
+    if (nal.nalType === 33 && spsKept) continue;
+    if (nal.nalType === 34 && ppsKept) continue;
+    out.push(nal.data);
+    if (nal.nalType === 32) vpsKept = true;
+    else if (nal.nalType === 33) spsKept = true;
+    else if (nal.nalType === 34) ppsKept = true;
+  }
+  return concatBytes(out);
+}
+
+// Build AVCC-format VPS+SPS+PPS description (for VideoDecoder)
+function buildAvccDescription(vps, sps, pps) {
+  // Strip start code from each
+  const strip = nal => nal[0]===0&&nal[1]===0&&nal[2]===0&&nal[3]===1 ? nal.subarray(4) : nal;
+  const v = strip(vps), s = strip(sps), pp = strip(pps);
+  const avcc = nal => {
+    const out = new Uint8Array(4 + nal.length);
+    new DataView(out.buffer).setUint32(0, nal.length, false);
+    out.set(nal, 4);
+    return out;
+  };
+  return concatBytes([avcc(v), avcc(s), avcc(pp)]);
+}
+
+// Convert one Annex-B slice NAL to AVCC (4-byte length prefix) for the muxer
+function sliceToAvcc(nalData) {
+  // nalData includes start code
+  const body = nalData[0]===0&&nalData[1]===0&&nalData[2]===0&&nalData[3]===1
+             ? nalData.subarray(4) : nalData;
+  const out = new Uint8Array(4 + body.length);
+  new DataView(out.buffer).setUint32(0, body.length, false);
+  out.set(body, 4);
+  return out;
+}
+
+// Parse HEVC codec string from SPS (for VideoDecoder)
+function codecStringFromSps(sps) {
+  // sps: Annex-B (with start code). NAL header at sps[4..5].
+  // general_profile_space(2) | general_tier_flag(1) | general_profile_idc(5) at sps[6]
+  // general_profile_compatibility_flags[0] at sps[7]
+  // general_level_idc at sps[16]
+  if (sps.length < 20) return null;
+  const o = (sps[0]===0&&sps[1]===0&&sps[2]===0&&sps[3]===1) ? 4 : 0;
+  const profileIdc = sps[o + 2] & 0x1f;
+  const compat = sps[o + 3];
+  const level = sps[o + 12];
+  return `hev1.${profileIdc}.${compat.toString(16).padStart(2,'0')}.L${level}.B0`;
+}
+
+// =====================================================================
+// UI state
+// =====================================================================
+let parsed = null;
+let extractedHevc = null;
+let decoder = null;
+let frameQueue = [];
+let playing = false;
+const FRAME_US = 33333; // ~30 fps
+let videoCodecStr = null;
+
+$('fileIn').addEventListener('change', e => {
+  const f = e.target.files[0];
+  if (!f) return;
+  $('fileStatus').textContent = `${f.name} (${(f.size/1024/1024).toFixed(1)} MB)`;
+  $('loadBtn').disabled = false;
+});
+
+$('loadBtn').addEventListener('click', async () => {
+  const f = $('fileIn').files[0];
+  if (!f) return;
+  $('loadBtn').disabled = true;
+  $('loadStatus').textContent = '读取中…';
+  $('msgBox').innerHTML = '';
+  log('▶ 开始处理', f.name);
+  try {
+    const buf = await f.arrayBuffer();
+    $('loadStatus').textContent = '解析容器…';
+    parsed = await parseUmi(new Uint8Array(buf), p => {
+      if (p === 1) $('loadStatus').textContent = '解析完成 ✓';
+    });
+    log('解析统计:', JSON.stringify(parsed.stats));
+    const v = parsed.video[0];
+    log('  HEVC 流大小:', (v.hevc.length/1024/1024).toFixed(1), 'MB,', v.packets, 'packet');
+    log('  VPS?', !!v.vps, 'SPS?', !!v.sps, 'PPS?', !!v.pps);
+    if (v.vps) log('  VPS first 8:', Array.from(v.vps.subarray(0,8)).map(x=>x.toString(16).padStart(2,'0')).join(' '));
+    if (v.sps) log('  SPS first 8:', Array.from(v.sps.subarray(0,8)).map(x=>x.toString(16).padStart(2,'0')).join(' '));
+    if (v.pps) log('  PPS first 8:', Array.from(v.pps.subarray(0,8)).map(x=>x.toString(16).padStart(2,'0')).join(' '));
+    log('  IMU 样本:', parsed.imu.length);
+
+    extractedHevc = v.hevc;
+    $('dlHevc').disabled = false;
+    $('dlImu').disabled = false;
+
+    if (!v.vps || !v.sps || !v.pps) {
+      showMsg('⚠ 缺 VPS/SPS/PPS，无法初始化解码器。可以下载 .h265 然后用 ffmpeg 转 mp4。', 'warn');
+      $('playBtn').disabled = true;
+      return;
+    }
+    await setupDecoder(v);
+    $('dlMp4').disabled = false;
+  } catch (e) {
+    log('✗ 失败:', e.message);
+    showMsg('✗ 解析失败: ' + e.message, 'warn');
+  } finally {
+    $('loadBtn').disabled = false;
+  }
+});
+
+async function setupDecoder(v) {
+  if (typeof VideoDecoder === 'undefined') {
+    showMsg('⚠ 当前浏览器不支持 WebCodecs VideoDecoder（需 Chrome 94+ / Edge 88+）', 'warn');
+    $('playBtn').disabled = true;
+    return;
+  }
+  videoCodecStr = codecStringFromSps(v.sps);
+  log('  codec:', videoCodecStr);
+  const description = buildAvccDescription(v.vps, v.sps, v.pps);
+
+  decoder = new VideoDecoder({
+    output: f => { frameQueue.push(f); if (playing) drawNext(); },
+    error: e => log('decode error:', e.message),
+  });
+  try {
+    decoder.configure({
+      codec: videoCodecStr,
+      codedWidth: 1920, codedHeight: 1080,
+      description,
+    });
+  } catch (e) {
+    log('configure 失败:', e.message, '— 尝试 hev1.1.6.L93.B0');
+    decoder.configure({
+      codec: 'hev1.1.6.L93.B0',
+      codedWidth: 1920, codedHeight: 1080,
+      description,
+    });
+  }
+  $('playBtn').disabled = false;
+  $('pauseBtn').disabled = false;
+  $('restartBtn').disabled = false;
+  showMsg('✓ 解析完成，VPS/SPS/PPS 已识别。可以按 ▶ 播放，或下载 .mp4', 'ok');
+  $('playerStatus').textContent = '就绪 · 按 ▶ 播放';
+  feedFrames(v.hevc, 30);
+  log('  已送入 decoder 队列 30 帧');
+}
+
+function feedFrames(hevc, max) {
+  const nals = splitNalsAnnexb(hevc);
+  let fed = 0, n = 0;
+  for (const nal of nals) {
+    if (nal.nalType === 32 || nal.nalType === 33 || nal.nalType === 34) continue;
+    if (decoder && decoder.decodeQueueSize > 60) break;
+    // Strip start code; we send raw NAL bytes
+    const body = nal.data.subarray(4);
+    if (!decoder) return;
+    decoder.decode(new EncodedVideoChunk({
+      type: 'key',
+      timestamp: n * FRAME_US,
+      duration: FRAME_US,
+      data: body,
+    }));
+    n++; fed++;
+    if (max && fed >= max) break;
+  }
+  return n;
+}
+
+function drawNext() {
+  const canvas = $('canvas');
+  if (canvas.width !== 1920) canvas.width = 1920;
+  if (canvas.height !== 1080) canvas.height = 1080;
+  const frame = frameQueue.shift();
+  if (frame) {
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(frame, 0, 0, canvas.width, canvas.height);
+    frame.close();
+    $('playerStatus').textContent = `播放中 · 缓冲 ${frameQueue.length} 帧`;
+    if (parsed && decoder && decoder.decodeQueueSize < 10) feedFrames(parsed.video[0].hevc, 10);
+  }
+  if (playing) requestAnimationFrame(drawNext);
+}
+
+$('playBtn').addEventListener('click', () => { playing = true; drawNext(); });
+$('pauseBtn').addEventListener('click', () => { playing = false; });
+$('restartBtn').addEventListener('click', () => {
+  $('playerStatus').textContent = '重置中…';
+  if (decoder) try { decoder.close(); } catch {}
+  frameQueue = [];
+  setupDecoder(parsed.video[0]);
+  playing = false;
+});
+
+function download(name, blob) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+}
+
+$('dlHevc').addEventListener('click', () => {
+  if (!extractedHevc) return;
+  const name = $('fileIn').files[0].name.replace(/\.hmd$/i, '') + '.h265';
+  download(name, new Blob([extractedHevc], { type: 'video/hevc' }));
+  log('下载 .h265:', name, (extractedHevc.length/1024/1024).toFixed(1), 'MB');
+});
+$('dlImu').addEventListener('click', () => {
+  if (!parsed) return;
+  const data = parsed.imu.map(s => ({ seq: s.seq, t_us: s.t_us, raw_b64: btoa(String.fromCharCode(...s.raw)) }));
+  const name = $('fileIn').files[0].name.replace(/\.hmd$/i, '') + '_imu.json';
+  download(name, new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
+  log('下载 IMU JSON:', name, parsed.imu.length, 'samples');
+});
+$('dlMp4').addEventListener('click', () => {
+  if (!extractedHevc || !parsed) return;
+  // Use mp4-muxer from CDN to make a real .mp4
+  (async () => {
+    $('dlMp4').disabled = true;
+    $('dlMp4').textContent = '封装中…';
+    try {
+      log('▶ 加载 mp4-muxer (CDN)…');
+      const mod = await import('https://cdn.jsdelivr.net/npm/mp4-muxer@5.1.5/+esm');
+      const { Muxer, ArrayBufferTarget } = mod;
+      const v = parsed.video[0];
+      const description = buildAvccDescription(v.vps, v.sps, v.pps);
+      const muxer = new Muxer({
+        target: new ArrayBufferTarget(),
+        video: { codec: 'hevc', width: 1920, height: 1080, frameRate: 30, description },
+        fastStart: 'in-memory',
+      });
+      const nals = splitNalsAnnexb(dedupParamSets(extractedHevc));
+      let pts = 0, fed = 0, logEvery = 1000;
+      for (const nal of nals) {
+        if (nal.nalType === 32 || nal.nalType === 33 || nal.nalType === 34) continue;
+        const avcc = sliceToAvcc(nal.data);
+        muxer.addVideoChunkRaw(avcc, { pts, dts: pts });
+        pts += FRAME_US;
+        fed++;
+        if (fed % logEvery === 0) { log('  已封装', fed, '帧'); await new Promise(r => setTimeout(r, 0)); }
+      }
+      log('  封装完成, 总帧数:', fed);
+      muxer.finalize();
+      const blob = new Blob([muxer.target.buffer], { type: 'video/mp4' });
+      const name = $('fileIn').files[0].name.replace(/\.hmd$/i, '') + '.mp4';
+      download(name, blob);
+      log('✓ 下载 .mp4:', name, (blob.size/1024/1024).toFixed(1), 'MB');
+    } catch (e) {
+      log('✗ MP4 封装失败:', e.message);
+      showMsg('✗ MP4 封装失败: ' + e.message, 'warn');
+    } finally {
+      $('dlMp4').disabled = false;
+      $('dlMp4').textContent = '下载 .mp4 (用 ffmpeg 命令更稳)';
+    }
+  })();
+});
+</script>
+</body>
+</html>

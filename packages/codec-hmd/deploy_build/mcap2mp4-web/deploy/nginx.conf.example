@@ -1,0 +1,55 @@
+# nginx -> uvicorn 反代示例（监听 8756 -> 80/443）
+#
+# 大文件上传：client_max_body_size 必须足够大，建议 20g（mcap 单文件可能几个 GB）
+# 长耗时：mcap 解析 + H.265 转码 单 session 可达数 GB / 十几分钟，
+#       务必把 proxy_read_timeout / send_timeout / client_body_timeout 调大。
+# 缓存：默认 on，建议关闭 proxy_buffering on 让大文件不落盘。
+
+upstream mcap2mp4_backend {
+    server 127.0.0.1:8756;
+    keepalive 32;
+}
+
+server {
+    listen 80;
+    server_name _;
+    # 如有正式域名改成 443 + ssl 段
+
+    # 单个 mcap 可能 2 GB+；不要让 nginx 拦上传
+    client_max_body_size 20g;
+    client_body_buffer_size 1m;
+    client_body_timeout 3600s;
+
+    # 上传/转码可能跑几分钟甚至几十分钟
+    send_timeout 3600s;
+    proxy_connect_timeout 60s;
+    proxy_send_timeout 3600s;
+    proxy_read_timeout 3600s;
+
+    # 让流式上传 / 大文件不落 nginx 临时盘
+    proxy_request_buffering off;
+    proxy_buffering off;
+    proxy_http_version 1.1;
+
+    # 真实客户端 IP / X-Forwarded-Proto 给 uvicorn
+    proxy_set_header Host              $host;
+    proxy_set_header X-Real-IP         $remote_addr;
+    proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+
+    # 上传 & 状态查询
+    location /api/jobs/ {
+        proxy_pass http://mcap2mp4_backend;
+    }
+    location /api/ {
+        proxy_pass http://mcap2mp4_backend;
+    }
+
+    # 静态前端 & 视频下载
+    location /static/ {
+        proxy_pass http://mcap2mp4_backend;
+    }
+    location / {
+        proxy_pass http://mcap2mp4_backend;
+    }
+}

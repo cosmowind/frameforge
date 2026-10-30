@@ -1,0 +1,60 @@
+# === runtime（运行时数据，git 永远不入） ===
+runtime/
+.debug/
+*.log
+
+# === 依赖与构建产物 ===
+node_modules/
+dist/
+build/
+.next/
+.turbo/
+*.tsbuildinfo
+
+# === TS 编译中产物（应从 src 直接跑） ===
+apps/*/src/**/*.js
+apps/*/src/**/*.d.ts
+apps/*/vite.config.js
+apps/*/postcss.config.js
+apps/*/tailwind.config.js
+packages/*/src/**/*.js
+packages/*/src/**/*.d.ts
+
+# === 临时调试脚本（一律隔离） ===
+.runtime-diag/
+
+# === 临时/缓存 ===
+*.tmp
+*.temp
+.cache/
+.vite/
+coverage/
+.eslintcache
+next-env.d.ts
+out/
+.cache/
+
+# === 环境与密钥（P6 凭证隔离）===
+.env
+.env.local
+.env.*.local
+!.env.example
+infra/secrets/
+~/.ff/
+partner-cookie.json
+
+# === IDE/工具 ===
+.vscode/
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+
+# === 测试/调试产物 ===
+playwright-report/
+test-results/
+.playwright/
+
+# === Clerk + Next.js ===
+.middleware.js
+.clerk/

@@ -1,0 +1,32 @@
+[Unit]
+Description=mcap2mp4-web (FastAPI / uvicorn) - upload mode
+After=network.target
+
+[Service]
+Type=simple
+User=mcap
+Group=mcap
+WorkingDirectory=/opt/mcap2mp4-web
+Environment=HOST=127.0.0.1
+Environment=PORT=8756
+Environment=MCAP_DATA_ROOT=/var/lib/mcap2mp4/jobs
+Environment=JOB_TTL_HOURS=48
+Environment=JOB_MAX_KEEP=50
+Environment=MAX_UPLOAD_MB=8192
+ExecStart=/usr/bin/python3 -m uvicorn server:app --host 127.0.0.1 --port 8756 --proxy-headers
+Restart=on-failure
+RestartSec=5
+
+# 资源保护
+LimitNOFILE=65536
+MemoryMax=4G
+TasksMax=2048
+
+# 安全加固（按需启用）
+# NoNewPrivileges=true
+# ProtectSystem=strict
+# ProtectHome=true
+# ReadWritePaths=/var/lib/mcap2mp4
+
+[Install]
+WantedBy=multi-user.target

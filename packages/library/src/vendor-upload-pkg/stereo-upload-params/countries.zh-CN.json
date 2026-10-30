@@ -1,0 +1,75 @@
+{
+  "_note": "SYNTHETIC SAMPLE DATA - ISO 3166-1 alpha-2 subset.",
+  "values": [
+    {
+      "code": "US",
+      "label": {
+        "en": "United States",
+        "zh-CN": "美国"
+      }
+    },
+    {
+      "code": "CN",
+      "label": {
+        "en": "China",
+        "zh-CN": "中国"
+      }
+    },
+    {
+      "code": "JP",
+      "label": {
+        "en": "Japan",
+        "zh-CN": "日本"
+      }
+    },
+    {
+      "code": "KR",
+      "label": {
+        "en": "South Korea",
+        "zh-CN": "韩国"
+      }
+    },
+    {
+      "code": "GB",
+      "label": {
+        "en": "United Kingdom",
+        "zh-CN": "英国"
+      }
+    },
+    {
+      "code": "DE",
+      "label": {
+        "en": "Germany",
+        "zh-CN": "德国"
+      }
+    },
+    {
+      "code": "FR",
+      "label": {
+        "en": "France",
+        "zh-CN": "法国"
+      }
+    },
+    {
+      "code": "BR",
+      "label": {
+        "en": "Brazil",
+        "zh-CN": "巴西"
+      }
+    },
+    {
+      "code": "IN",
+      "label": {
+        "en": "India",
+        "zh-CN": "印度"
+      }
+    },
+    {
+      "code": "VN",
+      "label": {
+        "en": "Vietnam",
+        "zh-CN": "越南"
+      }
+    }
+  ]
+}

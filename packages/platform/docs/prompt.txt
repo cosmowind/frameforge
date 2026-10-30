@@ -1,0 +1,44 @@
+FrameForge（Video Upload & Management）— 用户原始需求摘要。
+
+Plan2 v2 写于 2026-07-10，由用户在审阅 plan1 后要求大改。
+
+核心场景：
+
+- 示例工厂 + 周边 15+ 台视频录入设备
+- 每天接入海量工业操作视频，需双上传（客户结算平台 + 自家留档防扯皮）
+- 设备异构：4 种 + 未来扩展
+  - DJI / 早期 GoPro（DCIM/MP4）
+  - 头环 HMD（私有格式）
+  - 后期 GoPro（MCAP）
+  - Generic AVI（多 AVI）
+- 业务规模：135 TB/月（不是 1 TB）
+- 域内 vs 外出录制员，区域隔离（上海/示例省）
+
+用户选型决策（plan2 §7）：
+- D1 Next.js 15 App Router + Turbopack（取代 Fastify）
+- D2 Clerk SaaS 鉴权（取代自实现 JWT）
+- D3 Docker Compose 必用
+- D4 PostgreSQL + Drizzle ORM
+- D5 腾讯云 COS + SCF + CDN 三层存储
+- D6 BullMQ 任务队列
+- D7 ff_ 表前缀
+- D8 Zod schema 前后端共享
+- D9 pnpm workspace + pnpm 10.x
+- D10 DeviceAdapter 插件架构（核心）
+
+否定/降级项（plan2 附）：
+- AI 评分 / 多模态分析 / 智能标签：不在业务范围内
+- OpenTelemetry + Prometheus / SOPS+age / Sentry / OpenAPI 双绑 / 限流熔断：MVP 不做
+- 4 步流程：合并为 3 步（选设备+扫 / 预览 / 填参+上传）
+
+业务侧待确认（plan2 §12.2）：
+- HMD decoder 是否由设备供应商提供？
+- MCAP 文件是否含视频轨道？
+- 客户 COS 桶名 + 地域 + 凭据
+- 域名 + 备案主体
+- 家用服务器情况（OS / 公网 IP / 带宽 / RAID）
+- 首批录制员数量 + 设备型号清单
+- Generic AVI 单 session 最多几个 AVI
+- SCF 触发器 vs 定时拉取
+
+历史背景：plan1（Fastify + 自 JWT + Vite）已落地 Phase 0 但被 plan2 大改取代。plan1 完整代码归档到 ff-v1-archive/。

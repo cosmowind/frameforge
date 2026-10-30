@@ -1,0 +1,561 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<title>HMD 预览器</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { font: 14px/1.5 system-ui, "Microsoft YaHei", sans-serif;
+         margin: 0; background: #0e1116; color: #e6e6e6;
+         min-height: 100vh; display: flex; flex-direction: column; }
+  header { padding: 10px 18px; background: #161b22; border-bottom: 1px solid #2a3138;
+           display: flex; align-items: center; gap: 10px; }
+  h1 { font-size: 14px; margin: 0; font-weight: 500; }
+  .badge { background: #2a3138; color: #9aa4ad; padding: 2px 8px; border-radius: 3px; font-size: 11px; }
+  .hud { font-size: 11px; color: #6e7681; margin-left: auto; }
+
+  .drop { flex: 1; display: flex; align-items: center; justify-content: center;
+          margin: 20px; border: 2px dashed #2a3138; border-radius: 12px;
+          color: #6e7681; transition: all 0.15s; min-height: 280px; }
+  .drop.over { border-color: #1f6feb; background: #0d1117; color: #e6e6e6; }
+  .drop-inner { text-align: center; padding: 24px; }
+  .drop h2 { font-size: 20px; margin: 0 0 6px; font-weight: 400; }
+  .drop p { margin: 4px 0; font-size: 13px; }
+  .drop button { margin-top: 14px; background: #1f6feb; color: #fff; border: 0;
+                 padding: 8px 20px; border-radius: 6px; font-size: 14px; cursor: pointer; }
+
+  main.player { flex: 1; display: none; flex-direction: column; padding: 10px; gap: 8px; }
+  main.player.on { display: flex; }
+  .drop.hide { display: none; }
+
+  .stage { flex: 1; background: #000; border-radius: 6px; display: flex;
+           align-items: center; justify-content: center; min-height: 200px; position: relative; }
+  canvas { max-width: 100%; max-height: 75vh; display: block; }
+  .stage.paused::after { content: '▶'; position: absolute; top: 50%; left: 50%;
+                          transform: translate(-50%, -50%); font-size: 56px;
+                          color: rgba(255,255,255,0.4); pointer-events: none; }
+
+  .controls { display: flex; align-items: center; gap: 6px; padding: 6px 10px;
+              background: #161b22; border: 1px solid #2a3138; border-radius: 6px; }
+  button.tb { background: #21262d; color: #e6e6e6; border: 1px solid #2a3138;
+              padding: 5px 10px; border-radius: 4px; font-size: 12px; cursor: pointer; }
+  button.tb:hover:not(:disabled) { background: #2a3138; }
+  button.tb:disabled { opacity: 0.4; cursor: not-allowed; }
+  input[type=range] { flex: 1; }
+  select { background: #21262d; color: #e6e6e6; border: 1px solid #2a3138;
+           padding: 4px 6px; border-radius: 4px; font-size: 12px; }
+  .time { font-family: ui-monospace, monospace; font-size: 12px; color: #9aa4ad;
+          min-width: 130px; text-align: center; }
+
+  .err { background: #3a1f1f; border: 1px solid #f85149; padding: 10px 14px;
+         border-radius: 6px; color: #ffa198; font-size: 13px; }
+  .info { background: #0d1117; border: 1px solid #2a3138; padding: 8px 14px;
+          border-radius: 6px; font-size: 12px; color: #9aa4ad; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>HMD 预览器</h1>
+  <span class="badge">不修改原文件 · 不写中间文件</span>
+  <span class="hud" id="hud"></span>
+</header>
+
+<div class="drop" id="drop">
+  <div class="drop-inner">
+    <h2>拖一个 .hmd 文件到这里</h2>
+    <p>或</p>
+    <button id="pickBtn">选择文件</button>
+    <input id="fileIn" type="file" accept=".hmd" style="display:none" />
+    <p style="margin-top:18px;font-size:12px">
+      浏览器内 WebCodecs 解码 HEVC · 双击 HTML 即用 · 需 Chrome 94+ / Edge 88+
+    </p>
+  </div>
+</div>
+
+<main class="player" id="player">
+  <div class="stage paused" id="stage">
+    <canvas id="canvas" width="1920" height="1080"></canvas>
+  </div>
+  <div class="controls">
+    <button class="tb" id="playPause" disabled>▶</button>
+    <button class="tb" id="stepBack" disabled title="前一个 IDR">⏮</button>
+    <button class="tb" id="stepFwd" disabled title="后一个 IDR">⏭</button>
+    <input type="range" id="seek" min="0" max="1000" value="0" disabled />
+    <span class="time" id="time">00:00.0 / 00:00.0</span>
+    <select id="rate" disabled>
+      <option value="0.25">0.25×</option>
+      <option value="0.5">0.5×</option>
+      <option value="1" selected>1×</option>
+      <option value="2">2×</option>
+      <option value="4">4×</option>
+    </select>
+    <button class="tb" id="newFile">📂 新文件</button>
+  </div>
+  <div id="err"></div>
+</main>
+
+<script>
+"use strict";
+
+const $ = id => document.getElementById(id);
+
+// =====================================================================
+// HMD PARSER (inlined for file:// usage)
+// =====================================================================
+const MAGIC = [0x55, 0x4d, 0x49, 0x33];
+const IMU_TYPE = 0x59;
+const SIZE_FIELD_BIAS = 8;
+const COMMON_HEADER_LEN = 24;
+
+function findPackets(buf) {
+  const out = [];
+  let p = 0;
+  const dv = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+  while (p + 8 <= buf.length) {
+    if (buf[p] === MAGIC[0] && buf[p+1] === MAGIC[1] && buf[p+2] === MAGIC[2] && buf[p+3] === MAGIC[3]) {
+      const sizeField = dv.getUint32(p + 4, true);
+      const total = sizeField + SIZE_FIELD_BIAS;
+      if (total < 16 || total > 16 * 1024 * 1024) { p++; continue; }
+      if (p + total > buf.length) { p++; continue; }
+      out.push({ offset: p, type: buf[p + 4], size: sizeField, total });
+      p += total;
+    } else p++;
+  }
+  return out;
+}
+
+function parseUmi(buf) {
+  const packets = findPackets(buf);
+  const nals = [];
+  let imu = 0, video = 0, skipped = 0;
+  let vps = null, sps = null, pps = null;
+  for (const pkt of packets) {
+    const p = pkt.offset, type = pkt.type, pktEnd = p + pkt.total;
+    if (type === IMU_TYPE && pkt.total === 97) { imu++; continue; }
+    let payloadStart = -1;
+    const scanEnd = Math.min(p + COMMON_HEADER_LEN + 32, pktEnd - 3);
+    for (let k = p + COMMON_HEADER_LEN; k < scanEnd; k++) {
+      if (buf[k] === 0 && buf[k+1] === 0 && buf[k+2] === 0 && buf[k+3] === 1) { payloadStart = k; break; }
+    }
+    if (payloadStart < 0) { skipped++; continue; }
+    let scan = payloadStart;
+    while (scan < pktEnd - 4) {
+      if (buf[scan] === 0 && buf[scan+1] === 0 && buf[scan+2] === 0 && buf[scan+3] === 1) {
+        let nextNal = scan + 4;
+        while (nextNal < pktEnd - 4) {
+          if (buf[nextNal] === 0 && buf[nextNal+1] === 0 && buf[nextNal+2] === 0 && buf[nextNal+3] === 1) break;
+          nextNal++;
+        }
+        const nt = (buf[scan + 4] >> 1) & 0x3f;
+        if (nt === 32 && !vps) vps = buf.subarray(scan, nextNal);
+        else if (nt === 33 && !sps) sps = buf.subarray(scan, nextNal);
+        else if (nt === 34 && !pps) pps = buf.subarray(scan, nextNal);
+        nals.push({ nalType: nt, start: scan, end: nextNal });
+        scan = nextNal;
+      } else scan++;
+    }
+    video++;
+  }
+  return { nals, vps, sps, pps, imu, video, skipped };
+}
+
+// =====================================================================
+// HEVC helpers
+// =====================================================================
+function stripStartCode(nal) {
+  return nal[0]===0&&nal[1]===0&&nal[2]===0&&nal[3]===1 ? nal.subarray(4) : nal;
+}
+function avccWrap(nal) {
+  const body = stripStartCode(nal);
+  const out = new Uint8Array(4 + body.length);
+  new DataView(out.buffer).setUint32(0, body.length, false);
+  out.set(body, 4);
+  return out;
+}
+function concatBytes(arrs) {
+  let t = 0; for (const a of arrs) t += a.length;
+  const o = new Uint8Array(t); let p = 0;
+  for (const a of arrs) { o.set(a, p); p += a.length; }
+  return o;
+}
+
+/**
+ * Build a proper HEVCDecoderConfigurationRecord (hvcC) for the
+ * `description` field of VideoDecoder.configure.
+ *
+ * Layout (ISO/IEC 14496-15):
+ *   - 22 bytes header (configVersion, profile/tier/level/constraint,
+ *     segmentation/parallelism/chroma/bitDepth/avgFrameRate/...)
+ *   - numOfArrays (1B) arrays, each: type(1B) + numNalus(2B) +
+ *     for each: nalUnitLength(2B) + nalUnit bytes
+ */
+function buildHevcDescription(vpsNal, spsNal, ppsNal) {
+  const vpsBody = stripStartCode(vpsNal);
+  const spsBody = stripStartCode(spsNal);
+  const ppsBody = stripStartCode(ppsNal);
+
+  // spsBody = spsNal[4..], i.e. starts at the NAL header (2B), then
+  // the actual SPS body content. So:
+  //   [0..1]   = NAL header (forbidden|nal_type|layer|tid)
+  //   [2]      = sps_vps_id(4)|max_sub_layers(3)|temporal_nesting(1)
+  //   [3]      = profile_space(2)|tier(1)|profile_idc(5)
+  //   [4..7]   = profile_compat_flags (4B)
+  //   [8..13]  = constraint_indicator_flags (6B) — bits 0..3 are the
+  //              standard flags, bits 4..47 should be reserved zeros
+  //              (some encoders set non-zero; we mask them)
+  //   [14]     = general_level_idc (Galaxea HMD often writes 0 = "unspecified")
+  //   ...
+  const profile_space = (spsBody[3] >> 6) & 0x03;
+  const tier_flag = (spsBody[3] >> 5) & 0x01;
+  const profile_idc = spsBody[3] & 0x1f;
+  const profile_compat = spsBody.subarray(4, 8);
+  const constraint = new Uint8Array(6);
+  constraint[0] = spsBody[8] & 0xf0;   // keep top 4 bits (standard flags)
+  let level_idc = spsBody[14];
+  // Some encoders (incl. Galaxea HMD) write level_idc = 0 to mean
+  // "unspecified". For 1920x1080@30fps, the implicit level is 4.0.
+  if (level_idc === 0) level_idc = 120;  // Level 4.0
+
+  const out = [];
+  out.push(new Uint8Array([1]));                                  // configurationVersion
+  out.push(new Uint8Array([(profile_space << 6) | (tier_flag << 5) | profile_idc]));
+  out.push(profile_compat);
+  out.push(constraint);
+  out.push(new Uint8Array([level_idc]));
+  out.push(new Uint8Array([0xf0, 0x00]));                        // min_spatial_segmentation_idc (4 reserved + 12 bits = 0)
+  out.push(new Uint8Array([0xfc]));                               // parallelismType (6 reserved + 2 bits = 0)
+  out.push(new Uint8Array([0xfd]));                               // chromaFormat 4:2:0 (6 reserved + 2 = 1)
+  out.push(new Uint8Array([0xf8]));                               // bitDepthLumaMinus8 (5 reserved + 3 = 0)
+  out.push(new Uint8Array([0xf8]));                               // bitDepthChromaMinus8
+  out.push(new Uint8Array([0, 0]));                               // avgFrameRate (leave 0)
+  out.push(new Uint8Array([0x0f]));                               // constantFrameRate|numTemporalLayers|temporalIdNested|lengthSizeMinusOne=4
+  out.push(new Uint8Array([3]));                                  // numOfArrays: VPS + SPS + PPS
+
+  // VPS array
+  out.push(new Uint8Array([0x20]));
+  out.push(new Uint8Array([0, 1]));
+  out.push(new Uint8Array([(vpsBody.length >> 8) & 0xff, vpsBody.length & 0xff]));
+  out.push(vpsBody);
+  // SPS array
+  out.push(new Uint8Array([0x21]));
+  out.push(new Uint8Array([0, 1]));
+  out.push(new Uint8Array([(spsBody.length >> 8) & 0xff, spsBody.length & 0xff]));
+  out.push(spsBody);
+  // PPS array
+  out.push(new Uint8Array([0x22]));
+  out.push(new Uint8Array([0, 1]));
+  out.push(new Uint8Array([(ppsBody.length >> 8) & 0xff, ppsBody.length & 0xff]));
+  out.push(ppsBody);
+
+  return concatBytes(out);
+}
+function buildAvccDescription(vps, sps, pps) {
+  return buildHevcDescription(vps, sps, pps);
+}
+
+/**
+ * Build the WebCodecs codec string from an HEVC SPS (Annex-B).
+ * SPS structure: [0..3]=start_code  [4..5]=NAL_hdr  [6]=sps_vps_id
+ *   [7]=profile_idc  [8..11]=profile_compat  [12..17]=constraint
+ *   [18]=level_idc
+ */
+function codecStringFromSps(sps) {
+  if (sps.length < 22) return null;
+  const o = (sps[0]===0&&sps[1]===0&&sps[2]===0&&sps[3]===1) ? 4 : 0;
+  // sps layout (Annex-B, with o=4 = past start code):
+  //   [o+0..o+1] NAL header  (2B)
+  //   [o+2]      sps_vps_id | max_sub_layers | temporal_nesting
+  //   [o+3]      profile_space | tier | profile_idc
+  //   [o+4..o+7] profile_compat_flags (4B)
+  //   [o+8..o+13] constraint_indicator_flags (6B)
+  //   [o+14]     general_level_idc
+  const profileIdc = sps[o + 3] & 0x1f;
+  const compat = sps[o + 4];
+  let level = sps[o + 14];
+  if (level === 0) level = 120;  // Galaxea HMD: encoder leaves level unspecified
+  // Constraint indicator flags (6 bytes, masked)
+  let constraintHex = '';
+  for (let i = 0; i < 6; i++) {
+    let b = sps[o + 8 + i];
+    if (i === 0) b = b & 0xf0;
+    else b = 0;
+    constraintHex += b.toString(16).padStart(2, '0');
+  }
+  return `hev1.${profileIdc}.${compat.toString(16).padStart(2,'0')}.L${level}.${constraintHex.toUpperCase()}`;
+}
+
+// =====================================================================
+// Player state
+// =====================================================================
+let fileBuf = null;     // original .hmd buffer (kept for subarray reads)
+let parsed = null;
+let decoder = null;
+let canvas = null, ctx = null;
+let currentFrame = null;
+let nextNalIdx = 0;     // index into parsed.nals (slice NALs only)
+let pendingTs = 0;      // microseconds
+let playing = false;
+let playbackRate = 1.0;
+let lastFrameTimestamp = 0;
+let sliceNals = [];     // pre-filtered slice NAL refs (nalType < 32)
+let idrIdxs = [];       // indices into sliceNals of IDR frames
+const FPS = 30;
+const FRAME_US = Math.round(1e6 / FPS);
+
+// =====================================================================
+// File loading
+// =====================================================================
+const drop = $('drop'), player = $('player'), stage = $('stage');
+const fileIn = $('fileIn');
+
+$('pickBtn').addEventListener('click', () => fileIn.click());
+$('newFile').addEventListener('click', () => { closeFile(); fileIn.click(); });
+fileIn.addEventListener('change', e => { if (e.target.files[0]) loadFile(e.target.files[0]); });
+
+['dragenter','dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
+['dragleave','drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
+drop.addEventListener('drop', e => { e.preventDefault(); if (e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]); });
+document.addEventListener('dragover', e => e.preventDefault());
+document.addEventListener('drop', e => {
+  e.preventDefault();
+  if (e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]);
+});
+
+async function loadFile(file) {
+  if (!file.name.toLowerCase().endsWith('.hmd')) { showErr('请选择 .hmd 文件'); return; }
+  closeFile();
+  $('err').innerHTML = `<div class="info">读取 ${file.name} (${(file.size/1024/1024).toFixed(1)} MB) …</div>`;
+  drop.classList.add('hide');
+  player.classList.add('on');
+
+  try {
+    fileBuf = new Uint8Array(await file.arrayBuffer());
+  } catch (e) { showErr('读取失败: ' + e.message); closeFile(); return; }
+
+  const t0 = performance.now();
+  parsed = parseUmi(fileBuf);
+  const ms = (performance.now() - t0).toFixed(0);
+
+  $('hud').textContent = `${file.name} · ${(fileBuf.length/1024/1024).toFixed(0)} MB · ${parsed.video} 视频包 · ${parsed.imu} IMU · 解析 ${ms} ms`;
+  if (parsed.skipped) $('hud').textContent += ` · 跳过 ${parsed.skipped}`;
+
+  if (!parsed.vps || !parsed.sps || !parsed.pps) {
+    showErr('未找到 VPS/SPS/PPS（不是合法的 HEVC 录像？）');
+    return;
+  }
+  if (typeof VideoDecoder === 'undefined') {
+    showErr('当前浏览器不支持 WebCodecs VideoDecoder。请用 Chrome 94+ / Edge 88+。');
+    return;
+  }
+
+  // Pre-filter slice NALs and IDR positions
+  sliceNals = parsed.nals.filter(n => n.nalType < 32);
+  idrIdxs = [];
+  for (let i = 0; i < sliceNals.length; i++) {
+    if (sliceNals[i].nalType === 19 || sliceNals[i].nalType === 20) idrIdxs.push(i);
+  }
+
+  // Set up canvas + decoder
+  canvas = $('canvas');
+  ctx = canvas.getContext('2d');
+  canvas.width = 1920; canvas.height = 1080;
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, 1920, 1080);
+
+  const description = buildAvccDescription(parsed.vps, parsed.sps, parsed.pps);
+  const codecStr = codecStringFromSps(parsed.sps) || 'hev1.1.6.L93.B0';
+  console.log('codec:', codecStr);
+  decoder = new VideoDecoder({
+    output: frame => {
+      if (currentFrame) try { currentFrame.close(); } catch {}
+      currentFrame = frame;
+      drawFrame();
+    },
+    error: e => console.warn('decode error:', e.message),
+  });
+  try { decoder.configure({ codec: codecStr, codedWidth: 1920, codedHeight: 1080, description }); }
+  catch (e) { decoder.configure({ codec: 'hev1.1.6.L93.B0', codedWidth: 1920, codedHeight: 1080, description }); }
+
+  const totalSec = sliceNals.length / FPS;
+  $('seek').max = totalSec;
+  $('seek').disabled = false;
+  ['playPause','stepBack','stepFwd','rate'].forEach(id => $(id).disabled = false);
+  $('time').textContent = `${fmtTime(0)} / ${fmtTime(totalSec)}`;
+
+  // Reset state and start auto-play
+  nextNalIdx = 0;
+  pendingTs = 0;
+  primeDecoder();
+  setPlaying(true);
+  $('err').innerHTML = '';
+}
+
+function closeFile() {
+  setPlaying(false);
+  if (decoder) { try { decoder.close(); } catch {} decoder = null; }
+  if (currentFrame) { try { currentFrame.close(); } catch {} currentFrame = null; }
+  fileBuf = null; parsed = null; sliceNals = []; idrIdxs = [];
+  drop.classList.remove('hide');
+  player.classList.remove('on');
+  $('hud').textContent = '';
+  $('seek').value = 0;
+  ['playPause','stepBack','stepFwd','seek','rate'].forEach(id => $(id).disabled = true);
+  if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+  $('err').innerHTML = '';
+}
+
+function showErr(msg) { $('err').innerHTML = `<div class="err">${msg}</div>`; }
+
+// =====================================================================
+// Decoder feeding
+// =====================================================================
+
+// The hvcC description sets lengthSizeMinusOne=3, so every frame the
+// decoder receives must be in AVCC format: 4-byte big-endian length
+// prefix + NAL body (no Annex-B start code). We pre-build a small
+// per-NAL AVCC buffer to avoid re-allocating each frame.
+function makeAvccChunk(nalStart, nalEnd) {
+  // nalStart/nalEnd are byte offsets in fileBuf pointing at a start code.
+  // Skip the 4-byte start code; prepend a 4-byte big-endian length.
+  const bodyLen = nalEnd - nalStart - 4;
+  const out = new Uint8Array(4 + bodyLen);
+  new DataView(out.buffer).setUint32(0, bodyLen, false);
+  out.set(fileBuf.subarray(nalStart + 4, nalEnd), 4);
+  return out;
+}
+
+function primeDecoder() {
+  if (!parsed || !decoder) return;
+  // VPS/SPS/PPS already live in the decoder's description (the hvcC);
+  // we only need to feed slice NALs, in AVCC format.
+  const budget = 60;
+  let fed = 0;
+  while (nextNalIdx < sliceNals.length && fed < budget) {
+    feedSliceNal(sliceNals[nextNalIdx]);
+    nextNalIdx++;
+    fed++;
+  }
+}
+function feedSliceNal(n) {
+  const isKey = n.nalType === 19 || n.nalType === 20;
+  const data = makeAvccChunk(n.start, n.end);
+  decoder.decode(new EncodedVideoChunk({
+    type: isKey ? 'key' : 'delta',
+    timestamp: pendingTs, duration: FRAME_US, data,
+  }));
+  pendingTs += FRAME_US;
+}
+
+function drawFrame() {
+  if (!currentFrame || !ctx) return;
+  if (canvas.width !== currentFrame.codedWidth) canvas.width = currentFrame.codedWidth;
+  if (canvas.height !== currentFrame.codedHeight) canvas.height = currentFrame.codedHeight;
+  ctx.drawImage(currentFrame, 0, 0, canvas.width, canvas.height);
+}
+
+// =====================================================================
+// Playback loop
+// =====================================================================
+function setPlaying(on) {
+  playing = on;
+  $('playPause').textContent = on ? '⏸' : '▶';
+  stage.classList.toggle('paused', !on);
+  if (on) {
+    lastFrameTimestamp = performance.now();
+    requestAnimationFrame(playbackLoop);
+  }
+}
+$('playPause').addEventListener('click', () => setPlaying(!playing));
+stage.addEventListener('click', () => setPlaying(!playing));
+$('rate').addEventListener('change', e => { playbackRate = parseFloat(e.target.value); });
+
+function playbackLoop() {
+  if (!playing) return;
+  const now = performance.now();
+  const dt = (now - lastFrameTimestamp) / 1000;
+  lastFrameTimestamp = now;
+  if (!currentFrame) {
+    if (decoder && decoder.decodeQueueSize < 6) primeDecoder();
+  } else {
+    if (decoder && decoder.decodeQueueSize < 6) primeDecoder();
+  }
+  const sec = pendingTs / 1e6;
+  if (document.activeElement !== $('seek')) $('seek').value = sec;
+  $('time').textContent = `${fmtTime(sec)} / ${fmtTime(sliceNals.length / FPS)}`;
+  if (nextNalIdx >= sliceNals.length && decoder.decodeQueueSize === 0) {
+    setPlaying(false);
+    return;
+  }
+  requestAnimationFrame(playbackLoop);
+}
+
+// Coarse seek: jump to the nearest previous IDR
+$('seek').addEventListener('input', e => {
+  if (!parsed) return;
+  const sec = parseFloat(e.target.value);
+  $('time').textContent = `${fmtTime(sec)} / ${fmtTime(sliceNals.length / FPS)}`;
+});
+$('seek').addEventListener('change', e => {
+  if (!parsed) return;
+  const sec = parseFloat(e.target.value);
+  const targetSlice = Math.max(0, Math.min(sliceNals.length - 1, Math.round(sec * FPS)));
+  // Find nearest IDR at or before targetSlice
+  let idrSlice = 0;
+  for (const idx of idrIdxs) {
+    if (idx <= targetSlice) idrSlice = idx;
+    else break;
+  }
+  // Reset decoder, re-prime with param sets, then re-feed up to idrSlice
+  setPlaying(false);
+  if (decoder) try { decoder.close(); } catch {}
+  if (currentFrame) try { currentFrame.close(); } catch {}
+  currentFrame = null;
+  const description = buildAvccDescription(parsed.vps, parsed.sps, parsed.pps);
+  const codecStr = codecStringFromSps(parsed.sps) || 'hev1.1.6.L93.B0';
+  decoder = new VideoDecoder({
+    output: frame => { if (currentFrame) try { currentFrame.close(); } catch {} currentFrame = frame; drawFrame(); },
+    error: e => console.warn('decode error:', e.message),
+  });
+  decoder.configure({ codec: codecStr, codedWidth: 1920, codedHeight: 1080, description });
+  pendingTs = 0;
+  nextNalIdx = 0;
+  primeDecoderUpTo(idrSlice);
+  setPlaying(true);
+});
+function primeDecoderUpTo(targetIdx) {
+  if (!parsed || !decoder) return;
+  // VPS/SPS/PPS live in the decoder description; just feed slices.
+  let i = 0;
+  while (nextNalIdx < sliceNals.length && i < targetIdx) {
+    feedSliceNal(sliceNals[nextNalIdx]);
+    nextNalIdx++; i++;
+  }
+}
+
+$('stepBack').addEventListener('click', () => {
+  if (!sliceNals.length) return;
+  const cur = nextNalIdx;
+  let target = 0;
+  for (const idx of idrIdxs) if (idx < cur) target = idx;
+  $('seek').value = target / FPS;
+  $('seek').dispatchEvent(new Event('change'));
+});
+$('stepFwd').addEventListener('click', () => {
+  if (!sliceNals.length) return;
+  const cur = nextNalIdx;
+  let target = sliceNals.length - 1;
+  for (const idx of idrIdxs) if (idx > cur) { target = idx; break; }
+  $('seek').value = target / FPS;
+  $('seek').dispatchEvent(new Event('change'));
+});
+
+function fmtTime(sec) {
+  if (!isFinite(sec)) sec = 0;
+  const m = Math.floor(sec / 60);
+  const s = sec - m * 60;
+  return `${String(m).padStart(2,'0')}:${s.toFixed(1).padStart(4,'0')}`;
+}
+</script>
+</body>
+</html>

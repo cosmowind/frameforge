@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>mcap2mp4 本地转换服务</title>
+<style>
+  :root {
+    --bg: #0f172a; --panel: #1e293b; --panel2: #273449;
+    --fg: #e2e8f0; --muted: #94a3b8;
+    --accent: #38bdf8; --ok: #22c55e; --warn: #f59e0b; --err: #ef4444;
+    --border: #334155;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg); color: var(--fg);
+  }
+  header {
+    padding: 18px 24px; border-bottom: 1px solid var(--border);
+    background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+  }
+  header h1 { margin: 0; font-size: 18px; }
+  header .sub { color: var(--muted); font-size: 12px; margin-top: 4px; }
+  main { max-width: 1100px; margin: 0 auto; padding: 20px; display: grid; gap: 18px; }
+  .card {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 10px; padding: 16px 18px;
+  }
+  .card h2 { margin: 0 0 10px; font-size: 14px; color: var(--muted); font-weight: 600; letter-spacing: .05em; text-transform: uppercase; }
+  label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  input[type=text] {
+    width: 100%; padding: 10px 12px; background: var(--panel2); color: var(--fg);
+    border: 1px solid var(--border); border-radius: 6px; font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 13px;
+  }
+  input[type=text]:focus { outline: 2px solid var(--accent); border-color: var(--accent); }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .actions { display: flex; gap: 8px; margin-top: 12px; align-items: center; flex-wrap: wrap; }
+  button {
+    background: var(--accent); color: #0b1220; border: 0;
+    padding: 9px 16px; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 13px;
+  }
+  button.secondary { background: var(--panel2); color: var(--fg); border: 1px solid var(--border); }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .pill {
+    display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 600;
+  }
+  .pill.idle    { background: #475569; color: #f1f5f9; }
+  .pill.running { background: var(--warn); color: #1f1300; }
+  .pill.done    { background: var(--ok);   color: #052e10; }
+  .pill.error   { background: var(--err);  color: #fff; }
+  .progress {
+    height: 10px; background: var(--panel2); border-radius: 6px; overflow: hidden;
+    margin-top: 6px; border: 1px solid var(--border);
+  }
+  .progress > div { height: 100%; background: linear-gradient(90deg, var(--accent), #818cf8); width: 0%; transition: width .25s ease; }
+  .kv { display: grid; grid-template-columns: 110px 1fr; gap: 4px 12px; font-size: 13px; }
+  .kv .k { color: var(--muted); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--border); }
+  th { color: var(--muted); font-weight: 600; font-size: 12px; }
+  td.name { font-family: ui-monospace, Consolas, monospace; }
+  td .badge {
+    display: inline-block; padding: 1px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;
+  }
+  .badge.ok      { background: rgba(34,197,94,.2);  color: #86efac; }
+  .badge.skipped { background: rgba(245,158,11,.2); color: #fcd34d; }
+  .badge.error   { background: rgba(239,68,68,.2);  color: #fca5a5; }
+  a.btn-link { color: var(--accent); text-decoration: none; margin-right: 10px; }
+  a.btn-link:hover { text-decoration: underline; }
+  video {
+    width: 100%; max-height: 460px; background: #000; border-radius: 8px; margin-top: 8px;
+  }
+  .hint { color: var(--muted); font-size: 12px; }
+  pre.log {
+    background: #0b1220; color: #cbd5e1; padding: 10px 12px; border-radius: 6px;
+    font-family: ui-monospace, Consolas, monospace; font-size: 12px; max-height: 220px; overflow: auto;
+    border: 1px solid var(--border); white-space: pre-wrap;
+  }
+  details summary { cursor: pointer; color: var(--muted); font-size: 12px; }
+  .hevc-note { color: #fcd34d; font-size: 12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>mcap → mp4 本地转换服务</h1>
+  <div class="sub">复用 <code>mcap2mp4_app.py</code> 的解析/转码逻辑。文件在服务器端就地处理，不走浏览器上传。</div>
+</header>
+<main>
+  <section class="card">
+    <h2>1. 选择输入 / 输出目录</h2>
+    <div class="row">
+      <div>
+        <label>输入文件夹 A（必填，含多个 session 子文件夹）</label>
+        <input id="inputDir" type="text" placeholder="例如 F:\data\sessions" />
+      </div>
+      <div>
+        <label>输出文件夹（留空则放到输入目录下 _mp4 子文件夹）</label>
+        <input id="outputDir" type="text" placeholder="例如 F:\data\_mp4" />
+      </div>
+    </div>
+    <div class="actions">
+      <button id="startBtn">开始转换</button>
+      <button id="refreshBtn" class="secondary">刷新状态</button>
+      <button id="resetBtn" class="secondary">清空状态</button>
+      <span id="statePill" class="pill idle">idle</span>
+      <span class="hint">正在处理时按钮会被禁用。</span>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>2. 进度</h2>
+    <div class="kv">
+      <div class="k">当前</div><div id="curName">—</div>
+      <div class="k">进度</div><div id="progText">0 / 0</div>
+      <div class="k">耗时</div><div id="elapsed">—</div>
+    </div>
+    <div class="progress"><div id="progBar"></div></div>
+    <details style="margin-top:10px"><summary>实时日志（最近 200 条）</summary>
+      <pre id="log" class="log"></pre>
+    </details>
+  </section>
+
+  <section class="card">
+    <h2>3. 已完成文件（可下载 / 预览）</h2>
+    <div class="hint">HEVC 在大部分浏览器里 <code>&lt;video&gt;</code> 放不了是正常的，请用【下载】按钮存到本地用 VLC / PotPlayer / ffmpeg 看。</div>
+    <table>
+      <thead>
+        <tr><th>文件名</th><th>大小</th><th>状态</th><th>耗时</th><th>操作</th></tr>
+      </thead>
+      <tbody id="resultBody">
+        <tr><td colspan="5" class="hint">暂无</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="card">
+    <h2>4. 预览（HTML5 video，依赖浏览器解码能力）</h2>
+    <div class="hint">从上面任选一个文件点【预览】，下方会出现播放器。</div>
+    <video id="player" controls preload="metadata"></video>
+    <div class="hevc-note" id="hevcWarn" style="display:none">
+      ⚠ 这条视频多半是 H.265/HEVC，浏览器原生不支持是常见情况 —— 请走下载链接用本地播放器播放。
+    </div>
+  </section>
+</main>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const fmtSize = (n) => {
+  if (!n && n !== 0) return '—';
+  const u = ['B','KB','MB','GB','TB']; let i = 0; let x = n;
+  while (x >= 1024 && i < u.length-1) { x /= 1024; i++; }
+  return x.toFixed(x < 10 && i > 0 ? 2 : 1) + ' ' + u[i];
+};
+const fmtSec = (s) => {
+  if (!s && s !== 0) return '—';
+  s = Math.round(s);
+  const m = Math.floor(s / 60), r = s % 60;
+  return m > 0 ? `${m}m${r}s` : `${r}s`;
+};
+
+async function postJSON(url, body) {
+  const r = await fetch(url, { method: 'POST', headers: {'Content-Type':'application/json'}, body: body ? JSON.stringify(body) : undefined });
+  const t = await r.text();
+  let j; try { j = JSON.parse(t); } catch { j = { raw: t }; }
+  if (!r.ok) throw new Error(j.detail || j.error || ('HTTP ' + r.status));
+  return j;
+}
+
+async function getJSON(url) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  return r.json();
+}
+
+function setStatePill(s) {
+  const el = $('#statePill');
+  el.className = 'pill ' + s;
+  el.textContent = s;
+}
+
+function renderResults(snap) {
+  const tb = $('#resultBody');
+  const rows = (snap.results || []).slice().reverse();
+  const existing = (snap.existing_files || []).filter(f => !rows.some(r => r.output && r.output.endsWith(f.name)));
+  if (!rows.length && !existing.length) {
+    tb.innerHTML = '<tr><td colspan="5" class="hint">暂无</td></tr>';
+    return;
+  }
+  const html = [];
+  for (const r of rows) {
+    const sz = r.output ? fmtSize(0) /* size not tracked per row */ : '—';
+    html.push(`<tr>
+      <td class="name">${r.name}.mp4</td>
+      <td>${r.output ? '已完成' : '—'}</td>
+      <td><span class="badge ${r.status}">${r.status}</span>${r.error ? ` <span class="hint">${r.error}</span>` : ''}</td>
+      <td>${fmtSec(r.seconds)}</td>
+      <td>${r.output ? `<a class="btn-link" href="/api/files/${r.name}.mp4" target="_blank" rel="noopener">下载</a><a class="btn-link" href="javascript:void(0)" onclick="preview('${r.name}.mp4')">预览</a>` : '—'}</td>
+    </tr>`);
+  }
+  for (const f of existing) {
+    html.push(`<tr>
+      <td class="name">${f.name}</td>
+      <td>${fmtSize(f.size)}</td>
+      <td><span class="badge ok">已有</span></td>
+      <td>—</td>
+      <td><a class="btn-link" href="/api/files/${encodeURIComponent(f.name)}" target="_blank" rel="noopener">下载</a><a class="btn-link" href="javascript:void(0)" onclick="preview('${f.name.replace(/'/g,"\\'")}')">预览</a></td>
+    </tr>`);
+  }
+  tb.innerHTML = html.join('');
+}
+
+function renderStatus(snap) {
+  setStatePill(snap.state || 'idle');
+  $('#curName').textContent = snap.current || '—';
+  const total = snap.total || 0, done = snap.done || 0, failed = snap.failed || 0;
+  $('#progText').textContent = total ? `${done + failed} / ${total}（成功 ${done}，失败/跳过 ${failed}）` : '0 / 0';
+  const pct = total ? Math.round((done + failed) / total * 100) : 0;
+  $('#progBar').style.width = pct + '%';
+  if (snap.started_at) {
+    const end = snap.finished_at || Date.now()/1000;
+    $('#elapsed').textContent = fmtSec(end - snap.started_at);
+  } else {
+    $('#elapsed').textContent = '—';
+  }
+  $('#log').textContent = (snap.log || []).join('\n');
+  $('#log').scrollTop = $('#log').scrollHeight;
+  renderResults(snap);
+  const running = snap.state === 'running';
+  $('#startBtn').disabled = running;
+}
+
+async function refresh() {
+  try {
+    const s = await getJSON('/api/status');
+    renderStatus(s);
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+window.preview = (name) => {
+  const v = $('#player');
+  v.src = '/api/preview/' + encodeURIComponent(name);
+  v.load();
+  v.play().catch(() => {});
+  // 触发 HEVC 提示（codec 信息要等 loadedmetadata 后才准，这里先显示提醒）
+  $('#hevcWarn').style.display = 'block';
+  v.onerror = () => {
+    $('#hevcWarn').textContent = '⚠ 浏览器解码失败 —— 该视频大概率是 H.265/HEVC（浏览器原生不支持是常态）。请用上面的【下载】按钮存到本地用 VLC / PotPlayer / ffmpeg 看。';
+  };
+  v.onloadedmetadata = () => {
+    // 进一步判断
+    if (v.videoWidth === 0) {
+      $('#hevcWarn').textContent = '⚠ 浏览器无法解析此视频。请用【下载】按钮存到本地用 VLC / PotPlayer / ffmpeg 播放。';
+    }
+  };
+};
+
+$('#startBtn').onclick = async () => {
+  const inputDir = $('#inputDir').value.trim();
+  const outputDir = $('#outputDir').value.trim();
+  if (!inputDir) { alert('请先填输入文件夹路径'); return; }
+  try {
+    await postJSON('/api/convert', { input_dir: inputDir, output_dir: outputDir });
+    refresh();
+  } catch (e) {
+    alert('启动失败：' + e.message);
+  }
+};
+$('#refreshBtn').onclick = refresh;
+$('#resetBtn').onclick = async () => {
+  try { await postJSON('/api/reset'); refresh(); } catch (e) { alert(e.message); }
+};
+
+// 轮询
+setInterval(refresh, 1500);
+refresh();
+</script>
+</body>
+</html>

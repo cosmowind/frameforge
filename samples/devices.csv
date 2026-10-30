@@ -1,0 +1,5 @@
+volume_serial,volume_label,device_id,device_name,notes
+A1B2C3D4,ACTION_01,DX-0001,运动相机 Action 01 (主),256GB · A 级
+E5F6G7H8,ACTION_02,DX-0002,运动相机 Action 02,128GB
+I9J0K1L2,HMD_01,HM-0001,头戴相机 HMD 01,512GB · B 级
+M3N4O5P6,AVI_01,AV-0001,通用 AVI 录制设备,256GB

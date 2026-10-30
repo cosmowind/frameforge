@@ -1,0 +1,31 @@
+// T5 — 产品
+import { uuid, text, boolean, integer, timestamp, uniqueIndex, index } from 'drizzle-orm/pg-core'
+import { vumSchema } from '../schema'
+import { regions } from './ff_regions'
+import { users } from './ff_users'
+
+export const products = vumSchema.table(
+  'ff_products',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    businessKey: text('business_key').notNull(),
+    nameCn: text('name_cn').notNull(),
+    nameEn: text('name_en'),
+    regionId: uuid('region_id').notNull().references(() => regions.id),
+    imageUrl: text('image_url'),
+    imageCosKey: text('image_cos_key'),
+    isActive: boolean('is_active').notNull().default(true),
+    version: integer('version').notNull().default(1),
+    sourceDevice: text('source_device'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+    createdBy: uuid('created_by').references(() => users.id),
+  },
+  (t) => ({
+    businessKeyIdx: uniqueIndex('ff_products_business_key_idx').on(t.businessKey),
+    regionIdx: index('ff_products_region_idx').on(t.regionId),
+  }),
+)
+
+export type Product = typeof products.$inferSelect
+export type NewProduct = typeof products.$inferInsert

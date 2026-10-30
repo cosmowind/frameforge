@@ -1,0 +1,59 @@
+{
+  "name": "video-segmentation-tool",
+  "version": "2.2.0",
+  "description": "视频工具箱 - 支持视频分割和旋转，基于 FFmpeg 在 Electron 中处理视频",
+  "main": "dist/main/main.cjs",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "dev:electron": "concurrently \"npm run dev\" \"npm run build:main && electron .\"",
+    "build": "tsc && vite build",
+    "build:main": "npx tsc -p tsconfig.main.json && powershell -Command \"Get-ChildItem dist/main/*.js | ForEach-Object { Rename-Item $_.FullName ($_.BaseName + '.cjs') }\"",
+    "build:all": "npm run build && npm run build:main",
+    "preview": "vite preview",
+    "start": "npm run build:all && electron .",
+    "package": "npm run build:all && electron-builder --win",
+    "lint": "eslint . --ext .ts,.tsx",
+    "format": "prettier --write \"src/**/*.{ts,tsx,css}\""
+  },
+"keywords": [
+  "video",
+  "segmentation",
+  "rotation",
+  "ffmpeg",
+  "electron"
+],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/react": "^18.2.45",
+    "@types/react-dom": "^18.2.18",
+    "@typescript-eslint/eslint-plugin": "^6.15.0",
+    "@typescript-eslint/parser": "^6.15.0",
+    "@vitejs/plugin-react": "^4.2.1",
+    "autoprefixer": "^10.4.16",
+    "concurrently": "^8.2.2",
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.1",
+    "eslint": "^8.56.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-react": "^7.33.2",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "postcss": "^8.4.32",
+    "prettier": "^3.1.1",
+    "tailwindcss": "^3.4.0",
+    "typescript": "^5.9.3",
+    "vite": "^5.0.8"
+  },
+  "dependencies": {
+    "@ffmpeg/ffmpeg": "^0.12.10",
+    "@ffmpeg/util": "^0.12.1",
+    "antd": "^5.12.5",
+    "file-saver": "^2.0.5",
+    "jszip": "^3.10.1",
+    "mp4box": "^0.5.2",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "zustand": "^4.4.7"
+  }
+}

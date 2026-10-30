@@ -1,0 +1,14 @@
+{
+  "name": "vendor-upload-pkg",
+  "version": "0.1.0",
+  "private": true,
+  "description": "CLI tools for uploading vendor videos to publish.example.com/vendors task boxes. The Node-side package wraps the .hmd session parser + MCAP writer that the Python CLI shells out to.",
+  "type": "commonjs",
+  "scripts": {
+    "hmd-to-mcap": "node hmd_to_mcap.js"
+  },
+  "dependencies": {
+    "@mcap/core": "^2.2.1",
+    "protobufjs": "^7.4.0"
+  }
+}

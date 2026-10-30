@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+*.log
+csv_backups/
+archive/
+*.csv
+device_monitor.log

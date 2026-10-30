@@ -1,0 +1,222 @@
+{
+  "$schema": "./params.schema.json",
+  "version": "1.0.0",
+  "lastUpdated": "2026-01-01",
+  "source": "frameforge/samples/synthetic",
+  "note": "SYNTHETIC SAMPLE DATA. Shape mirrors the production contract; every value here is invented.",
+  "stereo": {
+    "_zhCN": "双目立体交付参数",
+    "_endpoint_create": "POST /api/deliveries/task-boxes",
+    "_endpoint_initiate": "POST /api/deliveries/videos/stereo-session/{id}/initiate",
+    "_endpoint_sign_parts": "POST /api/deliveries/videos/stereo-session/{id}/sign-parts",
+    "_endpoint_complete": "POST /api/deliveries/videos/stereo-session/{id}/complete",
+    "_note": "Stereoscopic sessions ship one folder per capture session.",
+    "captureMode": {
+      "value": "stereo",
+      "label": {
+        "en": "Stereo",
+        "zh-CN": "双目立体"
+      },
+      "_description": {
+        "en": "stereo mode = folder of .hmd parts + metadata.json",
+        "zh-CN": "stereo 模式 = 一个 .hmd 会话目录（含 part_NNN.hmd + metadata.json）"
+      }
+    },
+    "scenario": {
+      "_type": "enum",
+      "_source": "frameforge/samples/synthetic/scene-categories.zh-CN.json",
+      "_required": true,
+      "_example": "workbench_assembly",
+      "label": {
+        "en": "Scenario",
+        "zh-CN": "场景任务"
+      },
+      "_description": {
+        "en": "leaf scenario id from the scene taxonomy",
+        "zh-CN": "场景分类叶子任务 ID"
+      },
+      "values": "see taxonomy.zh-CN.json"
+    },
+    "taskDescription": {
+      "value": "",
+      "label": {
+        "en": "Task description",
+        "zh-CN": "任务描述"
+      },
+      "_description": {
+        "en": "free text",
+        "zh-CN": "自由文本"
+      }
+    },
+    "environmentDescription": {
+      "value": "",
+      "label": {
+        "en": "Environment description",
+        "zh-CN": "环境描述"
+      },
+      "_description": {
+        "en": "free text",
+        "zh-CN": "自由文本"
+      }
+    },
+    "operatorName": {
+      "value": "",
+      "label": {
+        "en": "Operator",
+        "zh-CN": "操作员"
+      },
+      "_description": {
+        "en": "free text",
+        "zh-CN": "自由文本"
+      }
+    },
+    "folderName": {
+      "value": "",
+      "label": {
+        "en": "Folder name",
+        "zh-CN": "文件夹名"
+      },
+      "_description": {
+        "en": "free text",
+        "zh-CN": "自由文本"
+      }
+    },
+    "files": {
+      "value": [],
+      "label": {
+        "en": "Files",
+        "zh-CN": "文件列表"
+      },
+      "_description": {
+        "en": "part list",
+        "zh-CN": "分片列表"
+      }
+    },
+    "videoStats": {
+      "value": {},
+      "label": {
+        "en": "Video stats",
+        "zh-CN": "视频统计"
+      },
+      "_description": {
+        "en": "duration / fps / codec",
+        "zh-CN": "时长 / 帧率 / 编码"
+      }
+    }
+  },
+  "limits": {
+    "_note": "Server-side limits mirrored by the client.",
+    "partSize": {
+      "value": 524288000,
+      "humanReadable": "500 MB",
+      "label": {
+        "en": "Max part size",
+        "zh-CN": "单分片最大字节"
+      },
+      "_source": "sample"
+    },
+    "maxFileBytesSingle": {
+      "value": 5368709120,
+      "humanReadable": "5 GB",
+      "label": {
+        "en": "Max file size (mono)",
+        "zh-CN": "单目最大字节"
+      },
+      "_appliesTo": [
+        "mono"
+      ],
+      "_source": "sample"
+    },
+    "maxFileBytesThreeViews": {
+      "value": 5368709120,
+      "humanReadable": "5 GB",
+      "label": {
+        "en": "Max file size (three view)",
+        "zh-CN": "三视角最大字节"
+      },
+      "_appliesTo": [
+        "three_view"
+      ],
+      "_source": "sample"
+    },
+    "maxFileBytesStereo": {
+      "value": 10737418240,
+      "humanReadable": "10 GB",
+      "label": {
+        "en": "Max file size (stereo)",
+        "zh-CN": "双目最大字节"
+      },
+      "_appliesTo": [
+        "stereo"
+      ],
+      "_source": "sample"
+    },
+    "maxFilesPerBatch": {
+      "value": 200,
+      "label": {
+        "en": "Max files per batch",
+        "zh-CN": "单批最大文件数"
+      },
+      "_source": "sample"
+    },
+    "allowedExtensions": {
+      "value": [
+        ".mp4",
+        ".hmd",
+        ".mcap",
+        ".avi",
+        ".json"
+      ],
+      "label": {
+        "en": "Allowed extensions",
+        "zh-CN": "允许的扩展名"
+      },
+      "_source": "sample"
+    },
+    "filenameRules": {
+      "value": {
+        "pattern": "^(?P<session>[A-Za-z0-9_-]+)_session_(?P<index>\\d{5})$",
+        "maxLength": 128,
+        "allowedChars": "A-Za-z0-9._-"
+      },
+      "label": {
+        "en": "Filename rules",
+        "zh-CN": "文件名规则"
+      },
+      "_source": "sample"
+    }
+  },
+  "captureModes": {
+    "value": [
+      "stereo",
+      "mono",
+      "three_view"
+    ],
+    "label": {
+      "en": "Capture modes",
+      "zh-CN": "拍摄模式"
+    },
+    "_source": "sample"
+  },
+  "classification": {
+    "value": {
+      "environment": {
+        "en": "Environment",
+        "zh-CN": "环境"
+      },
+      "task": {
+        "en": "Task",
+        "zh-CN": "任务"
+      },
+      "product": {
+        "en": "Product",
+        "zh-CN": "产品"
+      }
+    },
+    "label": {
+      "en": "Classification axes",
+      "zh-CN": "分类维度"
+    },
+    "_source": "sample"
+  }
+}

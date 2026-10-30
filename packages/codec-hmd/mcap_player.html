@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MCAP 视频播放器 — /ego/camera/0 (左眼)</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0d1117;color:#c9d1d9;font-family:'Segoe UI',system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;min-height:100vh;padding:16px}
+h1{font-size:1.15em;margin-bottom:10px;color:#58a6ff}
+#drop{width:100%;max-width:780px;padding:36px;border:2px dashed #30363d;border-radius:12px;text-align:center;color:#8b949e;cursor:pointer;transition:.2s;margin-bottom:14px}
+#drop:hover,#drop.over{border-color:#58a6ff;color:#58a6ff;background:rgba(56,139,253,.05)}
+#drop input{display:none}
+#ctrl{display:none;gap:8px;align-items:center;flex-wrap:wrap;justify-content:center;margin-bottom:10px}
+button{background:#21262d;border:1px solid #30363d;color:#c9d1d9;padding:5px 14px;border-radius:6px;cursor:pointer;font-size:13px}
+button:hover:not(:disabled){background:#30363d}
+button:disabled{opacity:.35;cursor:not-allowed}
+#info{font-size:12.5px;color:#8b949e;margin-bottom:6px;text-align:center;max-width:780px}
+#wrap{display:none;position:relative;background:#000;border-radius:8px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.4);max-width:100%}
+canvas{display:block;max-width:100%;height:auto}
+#ov{position:absolute;top:6px;left:6px;background:rgba(0,0,0,.72);padding:3px 9px;border-radius:4px;font-size:11px;font-family:monospace;pointer-events:none;white-space:pre}
+#bar{display:none;width:100%;max-width:780px;height:4px;background:#21262d;border-radius:2px;margin-top:8px;cursor:pointer;overflow:hidden}
+#fill{height:100%;background:#58a6ff;width:0%;transition:width .08s linear}
+#log{max-width:780px;width:100%;max-height:140px;overflow-y:auto;background:#161b22;border-radius:6px;padding:8px;margin-top:10px;font:12px/1.6 'Cascadia Code','Fira Code',monospace;color:#8b949e}
+.i{color:#58a6ff}.o{color:#3fb950}.w{color:#d29922}.e{color:#f85149}
+</style>
+</head>
+<body>
+<h1>📹 MCAP 视频播放器 — /ego/camera/0 (左眼)</h1>
+<div id="drop" onclick="document.getElementById('fi').click()">
+  <div style="font-size:1.8em;margin-bottom:6px">📂</div>
+  <div>拖放 .mcap 文件到此处，或点击选择</div>
+  <div style="font-size:11px;margin-top:4px">自动解析左眼 CompressedVideo (H.264) | 需 Chrome 94+</div>
+  <input type="file" id="fi" accept=".mcap">
+</div>
+<div id="ctrl">
+  <button id="bP" disabled>▶ 播放</button>
+  <button id="bS" disabled>⏸ 暂停</button>
+  <button id="bX" disabled>⏹ 停止</button>
+  <span style="font-size:12px">帧 <b id="fN">0</b>/<b id="fT">0</b>
+    &nbsp;速度 <select id="spd"><option value="0.25">0.25x</option><option value="0.5">0.5x</option><option value="1" selected>1x</option><option value="2">2x</option></select>
+  </span>
+</div>
+<div id="info"></div>
+<div id="wrap"><canvas id="cv"></canvas><div id="ov"></div></div>
+<div id="bar"><div id="fill"></div></div>
+<div id="log"></div>
+
+<script>
+"use strict";
+
+// ─────────────────────────────────────────────────────────────────
+//  MCAP v0 binary parser
+// ─────────────────────────────────────────────────────────────────
+const MAGIC = [0x89,0x4D,0x43,0x41,0x50,0x30,0x0D,0x0A];
+
+function u16(d,p){return[d[p]|(d[p+1]<<8),p+2]}
+function u32(d,p){const v=d[p]|(d[p+1]<<8)|(d[p+2]<<16)|(d[p+3]<<24);return[v>>>0,p+4];}
+function u64(d,p){let v=0n;for(let i=0;i<8;i++)v|=BigInt(d[p+i])<<BigInt(i*8);return[v,p+8];}
+function pstr(d,p){const[l,p2]=u32(d,p);return[new TextDecoder().decode(d.subarray(p2,p2+l)),p2+l];}
+
+function parseSchema(d){const[id,p1]=u16(d,0);const[n,p2]=pstr(d,p1);const[e,p3]=pstr(d,p2);const[dl,p4]=u32(d,p3);return{id,name:n,encoding:e};}
+function parseChannel(d){const[id,p1]=u16(d,0);const[sid,p2]=u16(d,p1);const[t,p3]=pstr(d,p2);return{id,topic:t,schema_id:sid};}
+function parseMessage(d,len){const[chId]=u16(d,0);const[seq]=u32(d,2);const[lt]=u64(d,6);const[pt]=u64(d,14);return{channel_id:chId,sequence:seq,log_time:lt,publish_time:pt,data:d.subarray(22,22+len-22)};}
+
+function parseChunk(d, recStart, recLen){
+  const compOff = recStart + 28;
+  const[compLen] = u32(d, compOff);
+  const dataLenOff = compOff + 4 + compLen;
+  const[dataLen] = u64(d, dataLenOff);
+  const dataStart = dataLenOff + 8;
+  const raw = d.subarray(dataStart, dataStart + Number(dataLen));
+  // Decompress if needed
+  const compStr = new TextDecoder().decode(d.subarray(compOff+4, compOff+4+compLen));
+  if(compStr === 'zstd' && typeof DecompressionStream !== 'undefined'){
+    // zstd decompression would go here
+  }
+  return raw;
+}
+
+function parseMCAP(buf, onVideo){
+  const d = new Uint8Array(buf);
+  for(let i = 0; i < 8; i++){
+    if(d[i] !== MAGIC[i]){ log('❌ 不是有效的 MCAP 文件', 'e'); return false; }
+  }
+  const schemas = {}, channels = {};
+  let p = 8;
+  while(p < d.length - 9){
+    const opcode = d[p++];
+    const[length] = u64(d, p); p += 8;
+    const len = Number(length);
+    if(p + len > d.length) break;
+
+    if(opcode === 0x03){ const s = parseSchema(d.subarray(p, p+len)); schemas[s.id] = s; }
+    else if(opcode === 0x04){ const c = parseChannel(d.subarray(p, p+len)); channels[c.id] = c; }
+    else if(opcode === 0x05){
+      const m = parseMessage(d.subarray(p, p+len), len);
+      const ch = channels[m.channel_id];
+      if(ch && ch.topic === '/ego/camera/0' && schemas[ch.schema_id] && schemas[ch.schema_id].name === 'foxglove.CompressedVideo'){
+        onVideo({ channel: ch, schema: schemas[ch.schema_id], data: m.data });
+      }
+    }
+    else if(opcode === 0x06){
+      const raw = parseChunk(d, p, len);
+      let cp = 0;
+      while(cp < raw.length - 9){
+        const iop = raw[cp++];
+        const[il] = u64(raw, cp); cp += 8;
+        const ilen = Number(il);
+        if(cp + ilen > raw.length) break;
+        const recData = raw.subarray(cp, cp + ilen);
+        if(iop === 0x03){ const s = parseSchema(recData); schemas[s.id] = s; }
+        else if(iop === 0x04){ const c = parseChannel(recData); channels[c.id] = c; }
+        else if(iop === 0x05){
+          const m = parseMessage(recData, recData.length);
+          const ch = channels[m.channel_id];
+          if(ch && ch.topic === '/ego/camera/0' && schemas[ch.schema_id] && schemas[ch.schema_id].name === 'foxglove.CompressedVideo'){
+            onVideo({ channel: ch, schema: schemas[ch.schema_id], data: m.data });
+          }
+        }
+        cp += ilen;
+      }
+    }
+    p += len;
+  }
+  return true;
+}
+
+// ─────────────────────────────────────────────────────────────────
+//  Protobuf — foxglove.CompressedVideo
+// ─────────────────────────────────────────────────────────────────
+function pVar(d, p){
+  let v = 0n, sh = 0n, b;
+  do { if(p >= d.length) return [0n, p]; b = BigInt(d[p++]); v |= (b & 0x7Fn) << sh; sh += 7n; } while(b & 0x80n);
+  return [v, p];
+}
+function sint64(v){ return (v >> 1n) ^ -(v & 1n); }
+
+function parseCV(data){
+  let p = 0;
+  const r = { frame_id: '', seconds: 0, nanos: 0, data: null, format: 'h264' };
+  while(p < data.length){
+    const[tag, afterTag] = pVar(data, p); p = afterTag;
+    const fn = Number(tag >> 3n), wire = Number(tag & 7n);
+    if(fn === 1 && wire === 2){
+      const[tsLen, afterLen] = pVar(data, p);
+      if(afterLen + Number(tsLen) > data.length) break;
+      const end = afterLen + Number(tsLen);
+      let ip = afterLen;
+      while(ip < end){
+        if(ip >= data.length) break;
+        const[tt, afterTag] = pVar(data, ip); ip = afterTag;
+        const tf = Number(tt >> 3n);
+        if(tf === 1){ const[sv, np] = pVar(data, ip); r.seconds = Number(sint64(sv)); ip = np; }
+        else if(tf === 2){ const[nv, np2] = pVar(data, ip); r.nanos = Number(nv); ip = np2; }
+        else { ip = pVar(data, ip)[1]; }
+      }
+      p = end;
+    } else if(fn === 2 && wire === 2){
+      const[l, afterLen] = pVar(data, p);
+      if(afterLen + Number(l) <= data.length) r.frame_id = new TextDecoder().decode(data.subarray(afterLen, afterLen + Number(l)));
+      p = afterLen + Number(l);
+    } else if(fn === 3 && wire === 2){
+      const[l, afterLen] = pVar(data, p);
+      if(afterLen + Number(l) <= data.length) r.data = data.subarray(afterLen, afterLen + Number(l));
+      p = afterLen + Number(l);
+    } else if(fn === 4 && wire === 2){
+      const[l, afterLen] = pVar(data, p);
+      if(afterLen + Number(l) <= data.length) r.format = new TextDecoder().decode(data.subarray(afterLen, afterLen + Number(l)));
+      p = afterLen + Number(l);
+    } else {
+      switch(wire){
+        case 0: p = pVar(data, p)[1]; break;
+        case 1: p += 8; break;
+        case 2: { const[l2] = pVar(data, p); if(p + Number(l2) > data.length) break; p = Number(pVar(data, p)[1]) + Number(l2); break; }
+        case 5: p += 4; break;
+        default: return r;
+      }
+    }
+  }
+  return r;
+}
+
+// ─────────────────────────────────────────────────────────────────
+//  H.264 NAL helpers
+//  This stream uses non-standard NAL type mapping:
+//    type 0 = SPS (normally 7)
+//    type 2 = Slice (normally 1)
+//    type 4 = PPS (normally 8)
+//    type 6 = SEI (normal)
+// ─────────────────────────────────────────────────────────────────
+function findNALs(data){
+  const u = [];
+  for(let i = 0; i < data.length - 4; ){
+    if(data[i] === 0 && data[i+1] === 0 && data[i+2] === 0 && data[i+3] === 1){
+      const type = data[i+4] & 0x1F;
+      let j = i + 4;
+      while(j < data.length - 4){
+        if(data[j]===0 && data[j+1]===0 && data[j+2]===0 && data[j+3]===1) break;
+        j++;
+      }
+      u.push({ type, header: data[i+4], data: data.subarray(i+4, j), size: j-(i+4), offset: i });
+      i = j;
+    } else i++;
+  }
+  return u;
+}
+
+function remapType(t){
+  if(t === 0) return 7;   // SPS
+  if(t === 4) return 8;   // PPS
+  if(t === 2) return 1;   // Slice
+  return t;
+}
+
+function remapNALStream(data){
+  // Rebuild Annex B stream with remapped NAL types
+  const out = [];
+  for(let i = 0; i < data.length - 4; ){
+    if(data[i] === 0 && data[i+1] === 0 && data[i+2] === 0 && data[i+3] === 1){
+      const type = data[i+4] & 0x1F;
+      const newType = remapType(type);
+      // Find end of NAL
+      let j = i + 4;
+      while(j < data.length - 4){
+        if(data[j]===0 && data[j+1]===0 && data[j+2]===0 && data[j+3]===1) break;
+        j++;
+      }
+      // Write start code + remapped NAL header + payload
+      out.push(0, 0, 0, 1);
+      out.push((data[i+4] & 0xE0) | (newType & 0x1F));
+      for(let k = i + 5; k < j; k++) out.push(data[k]);
+      i = j;
+    } else {
+      i++;
+    }
+  }
+  return new Uint8Array(out);
+}
+
+function removeEmulation(data){
+  // Remove emulation prevention bytes (00 00 03 → 00 00)
+  const r = [];
+  let i = 0;
+  while(i < data.length){
+    if(i + 2 < data.length && data[i] === 0 && data[i+1] === 0 && data[i+2] === 3){
+      r.push(data[i], data[i+1]);
+      i += 3;
+    } else {
+      r.push(data[i]);
+      i++;
+    }
+  }
+  return new Uint8Array(r);
+}
+
+function buildAVCC(spsData, ppsData){
+  // spsData and ppsData include NAL header byte, WITHOUT emulation prevention
+  const buf = new Uint8Array(5 + 1 + 2 + spsData.length + 1 + 2 + ppsData.length);
+  let o = 0;
+  buf[o++] = 1;                        // configurationVersion
+  buf[o++] = spsData[1];               // AVCProfileIndication
+  buf[o++] = spsData[2];               // profile_compatibility
+  buf[o++] = spsData[3];               // AVCLevelIndication
+  buf[o++] = 0xFF;                     // lengthSizeMinusOne = 3 (4 bytes)
+  buf[o++] = 0xE0 | 1;                // numOfSequenceParameterSets = 1
+  buf[o++] = (spsData.length >> 8) & 0xFF;
+  buf[o++] = spsData.length & 0xFF;
+  buf.set(spsData, o); o += spsData.length;
+  buf[o++] = 1;                        // numOfPictureParameterSets
+  buf[o++] = (ppsData.length >> 8) & 0xFF;
+  buf[o++] = ppsData.length & 0xFF;
+  buf.set(ppsData, o);
+  return buf;
+}
+
+function extractSPSPPS(allFrames){
+  // Scan frames for SPS (type 0→7) and PPS (type 4→8)
+  const maxScan = Math.min(allFrames.length, 200);
+  for(let f = 0; f < maxScan; f++){
+    const nals = findNALs(allFrames[f].data);
+    let spsNAL = null, ppsNAL = null;
+    for(const nal of nals){
+      if(nal.type === 0 && !spsNAL) spsNAL = nal;
+      if(nal.type === 4 && !ppsNAL) ppsNAL = nal;
+    }
+    if(spsNAL){
+      const spsClean = removeEmulation(spsNAL.data);
+      spsClean[0] = (spsClean[0] & 0xE0) | 7;
+      let ppsClean = null;
+      if(ppsNAL){
+        ppsClean = removeEmulation(ppsNAL.data);
+        ppsClean[0] = (ppsClean[0] & 0xE0) | 8;
+      } else {
+        ppsClean = new Uint8Array([0x68, 0xce, 0x31, 0x80]);
+        ppsClean[0] = (ppsClean[0] & 0xE0) | 8;
+      }
+      const avcc = buildAVCC(spsClean, ppsClean);
+      const codecStr = 'avc1.' + hex(spsClean.subarray(1, 4));
+      return { avcc, codecStr };
+    }
+  }
+  return null;
+}
+
+function hex(b){ return Array.from(b).map(x => x.toString(16).padStart(2,'0')).join(''); }
+
+// ─────────────────────────────────────────────────────────────────
+//  UI
+// ─────────────────────────────────────────────────────────────────
+const logEl = document.getElementById('log');
+function log(m, c=''){
+  const d = document.createElement('div'); d.className = c;
+  d.textContent = `[${new Date().toLocaleTimeString()}] ${m}`;
+  logEl.appendChild(d); logEl.scrollTop = logEl.scrollHeight;
+}
+
+if(typeof VideoDecoder === 'undefined'){
+  document.body.innerHTML = '<div style="color:#f85149;text-align:center;padding:40px;font-size:1.2em">❌ 浏览器不支持 WebCodecs API<br><br>请使用 <b>Chrome 94+</b> 或 <b>Edge 94+</b></div>';
+  throw new Error('No WebCodecs');
+}
+
+const drop = document.getElementById('drop'), fi = document.getElementById('fi');
+drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('over'); });
+drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('over'); if(e.dataTransfer.files.length) loadFile(e.dataTransfer.files[0]); });
+fi.addEventListener('change', e => { if(e.target.files.length) loadFile(e.target.files[0]); });
+
+const cv = document.getElementById('cv'), cx = cv.getContext('2d');
+const ov = document.getElementById('ov');
+let frames = [], playing = false, cur = 0, playT0 = 0, playF0 = 0, speed = 1;
+
+document.getElementById('spd').onchange = e => speed = +e.target.value;
+document.getElementById('bP').onclick = startPlay;
+document.getElementById('bS').onclick = () => { playing = false; document.getElementById('bP').disabled = false; document.getElementById('bS').disabled = true; };
+document.getElementById('bX').onclick = stopPlay;
+
+document.getElementById('bar').onclick = e => {
+  if(!frames.length) return;
+  const r = e.target.getBoundingClientRect();
+  const idx = Math.round((e.clientX - r.left) / r.width * (frames.length - 1));
+  cur = idx; drawFrame(cur); playF0 = cur; playT0 = performance.now();
+};
+
+function loadFile(file){
+  log(`📂 ${file.name} (${(file.size/1024/1024).toFixed(1)} MB)`);
+  drop.style.display = 'none';
+  const r = new FileReader();
+  r.onload = () => { log('🔍 解析 MCAP ...', 'i'); extractFrames(r.result); };
+  r.readAsArrayBuffer(file);
+}
+
+// ─────────────────────────────────────────────────────────────────
+//  Extraction + Decode
+// ─────────────────────────────────────────────────────────────────
+function extractFrames(buf){
+  const all = [];
+  let firstH264Data = null;
+  let spsPpsInfo = null;
+
+  parseMCAP(buf, msg => {
+    const cv = parseCV(msg.data);
+    if(cv.data && cv.data.length > 0){
+      // Find first Annex-B start code to skip any prefix
+      let offset = 0;
+      for(let i = 0; i < cv.data.length - 4; i++){
+        if(cv.data[i] === 0 && cv.data[i+1] === 0 && cv.data[i+2] === 0 && cv.data[i+3] === 1){ offset = i; break; }
+      }
+      const h264Data = cv.data.subarray(offset);
+      if(!firstH264Data) firstH264Data = h264Data;
+      all.push({ log_time: msg.log_time, data: h264Data });
+    }
+  });
+
+  log(`找到 ${all.length} 帧 CompressedVideo`, 'o');
+  if(!all.length){ log('❌ 没有视频帧', 'e'); return; }
+
+  all.sort((a, b) => Number(a.log_time) - Number(b.log_time));
+
+  // Extract SPS/PPS from first frame
+  spsPpsInfo = extractSPSPPS(all);
+  if(!spsPpsInfo){ log('❌ 找不到 SPS/PPS', 'e'); return; }
+
+  const codecStr = spsPpsInfo.codecStr;
+  log(`编码 ${codecStr}`, 'i');
+  log(`⏳ 解码 ${all.length} 帧...`, 'i');
+
+  const avcc = spsPpsInfo.avcc;
+  const decoded = [];
+  let gotSize = false;
+
+  try {
+    const dec = new VideoDecoder({
+      output: frame => {
+        if(!gotSize){
+          cv.width = frame.displayWidth; cv.height = frame.displayHeight;
+          document.getElementById('wrap').style.display = 'block';
+          log(`📐 ${cv.width}×${cv.height}`, 'o');
+          gotSize = true;
+        }
+        decoded.push({ ts: frame.timestamp, dur: frame.duration || 33333, bmp: frame });
+        frame.close();
+        if(decoded.length % 300 === 0) log(`  已解码 ${decoded.length} 帧`, 'i');
+      },
+      error: e => log('解码错误: ' + e.message, 'e')
+    });
+
+    log(`  配置解码器: ${codecStr} (AVCC ${avcc.length}B)`, 'i');
+    dec.configure({ codec: codecStr, description: avcc });
+
+    let idx = 0;
+    function feed(){
+      for(let i = 0; i < 30 && idx < all.length; i++, idx++){
+        const f = all[idx];
+        // Remap NAL types and reconstruct Annex B stream
+        const remapped = remapNALStream(f.data);
+        dec.decode(new EncodedVideoChunk({
+          type: f.data === firstH264Data ? 'key' : 'delta',
+          timestamp: Number(f.log_time) / 1000,
+          data: remapped
+        }));
+      }
+      if(idx < all.length){
+        setTimeout(feed, 0);
+      } else {
+        setTimeout(() => {
+          dec.close();
+          log(`✅ 解码完成: ${decoded.length} 帧`, 'o');
+          if(decoded.length) setupPlayback(decoded);
+        }, 600);
+      }
+    }
+    feed();
+
+  } catch(e) {
+    log('❌ 解码失败: ' + e.message, 'e');
+    log('   尝试使用非标准 NAL 类型映射 (0→SPS, 4→PPS, 2→Slice)', 'w');
+  }
+}
+
+function setupPlayback(decoded){
+  decoded.sort((a, b) => Number(a.ts) - Number(b.ts));
+  const t0 = decoded[0].ts;
+  for(const f of decoded) f.rel = Number(Number(f.ts - t0) / 1000);
+
+  for(let i = 0; i < decoded.length - 1; i++) decoded[i].dur = Number(decoded[i+1].ts - decoded[i].ts);
+  if(decoded.length > 1) decoded[decoded.length-1].dur = decoded[decoded.length-2].dur;
+
+  frames = decoded;
+  document.getElementById('fT').textContent = frames.length;
+  document.getElementById('ctrl').style.display = 'flex';
+  document.getElementById('bar').style.display = 'block';
+  document.getElementById('bP').disabled = false;
+
+  const dur = (frames[frames.length-1].rel / 1000).toFixed(1);
+  const fps = (frames.length / Math.max(1, +dur)).toFixed(1);
+  document.getElementById('info').textContent =
+    `${frames.length} 帧 | ${cv.width}×${cv.height} | ${dur}s | ~${fps} fps`;
+  drawFrame(0);
+  log('🎬 就绪，点播放开始', 'o');
+}
+
+function drawFrame(i){
+  if(i < 0 || i >= frames.length) return;
+  const f = frames[i];
+  cx.drawImage(f.bmp, 0, 0, cv.width, cv.height);
+  document.getElementById('fN').textContent = i + 1;
+  ov.textContent = `帧 ${String(i+1).padStart(4)}/${frames.length}  ${(f.rel/1000).toFixed(2)}s  ${cv.width}×${cv.height}`;
+  document.getElementById('fill').style.width = ((i+1)/frames.length*100) + '%';
+}
+
+function startPlay(){
+  if(!frames.length) return;
+  playing = true;
+  document.getElementById('bP').disabled = true;
+  document.getElementById('bS').disabled = false;
+  document.getElementById('bX').disabled = false;
+  if(cur >= frames.length - 1) cur = 0;
+  playT0 = performance.now(); playF0 = cur;
+  tick();
+}
+function stopPlay(){
+  playing = false; cur = 0;
+  document.getElementById('bP').disabled = false;
+  document.getElementById('bS').disabled = true;
+  document.getElementById('bX').disabled = true;
+  document.getElementById('fill').style.width = '0%';
+  if(frames.length) drawFrame(0);
+  playF0 = 0; playT0 = 0;
+}
+
+function tick(){
+  if(!playing) return;
+  const elapsed = (performance.now() - playT0) / 1000 * speed * 1000;
+  const tgtRel = frames[playF0].rel + elapsed;
+  let lo = 0, hi = frames.length - 1;
+  while(lo < hi){ const mid = (lo + hi + 1) >> 1; if(frames[mid].rel <= tgtRel) lo = mid; else hi = mid - 1; }
+  if(lo !== cur){ cur = lo; drawFrame(cur); }
+  if(cur >= frames.length - 1){ playing = false; document.getElementById('bP').disabled = false; document.getElementById('bS').disabled = true; return; }
+  requestAnimationFrame(tick);
+}
+
+log('🚀 就绪 — 拖入 ego_0000.mcap 播放左眼视频');
+</script>
+</body>
+</html>

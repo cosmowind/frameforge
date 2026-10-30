@@ -1,0 +1,456 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<!-- 兼容 Win7 浏览器：禁止用 ESM、动态 import、fetch stream、AbortSignal.timeout 等现代 API -->
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>mcap -> mp4 在线转换</title>
+<style>
+  :root { --bg:#0f172a; --panel:#1e293b; --p2:#273449; --fg:#e2e8f0;
+          --muted:#94a3b8; --accent:#38bdf8; --ok:#22c55e;
+          --warn:#f59e0b; --err:#ef4444; --border:#334155; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg);
+               font-family: -apple-system, "Segoe UI", Roboto, sans-serif; }
+  header { padding: 16px 22px; border-bottom: 1px solid var(--border);
+           background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%); }
+  header h1 { margin: 0; font-size: 18px; }
+  header .sub { color: var(--muted); font-size: 12px; margin-top: 4px; }
+  main { max-width: 1100px; margin: 0 auto; padding: 18px; display: grid; gap: 16px; }
+  .card { background: var(--panel); border: 1px solid var(--border);
+          border-radius: 10px; padding: 14px 18px; }
+  .card h2 { margin: 0 0 10px; font-size: 13px; color: var(--muted);
+             letter-spacing: .05em; text-transform: uppercase; font-weight: 600; }
+  .pill { display: inline-block; padding: 2px 10px; border-radius: 999px;
+          font-size: 12px; font-weight: 600; }
+  .pill.pending  { background: #475569; color: #f1f5f9; }
+  .pill.running  { background: var(--warn); color: #1f1300; }
+  .pill.done     { background: var(--ok);   color: #052e10; }
+  .pill.error    { background: var(--err);  color: #fff; }
+  .progress { height: 10px; background: var(--p2); border: 1px solid var(--border);
+              border-radius: 6px; overflow: hidden; margin-top: 6px; }
+  .progress > div { height: 100%; width: 0%; background: linear-gradient(90deg, var(--accent), #818cf8);
+                    transition: width .25s ease; }
+  button { background: var(--accent); color: #0b1220; border: 0;
+           padding: 9px 16px; border-radius: 6px; font-weight: 600;
+           cursor: pointer; font-size: 13px; }
+  button.secondary { background: var(--p2); color: var(--fg); border: 1px solid var(--border); }
+  button.danger { background: #7f1d1d; color: #fee2e2; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .hint { color: var(--muted); font-size: 12px; }
+  .warn-box { background: rgba(245,158,11,.08); border: 1px solid rgba(245,158,11,.4);
+              color: #fcd34d; padding: 8px 12px; border-radius: 6px; font-size: 12px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--border); }
+  th { color: var(--muted); font-size: 12px; font-weight: 600; }
+  td.name { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 12px; }
+  .badge { display: inline-block; padding: 1px 8px; border-radius: 4px;
+           font-size: 11px; font-weight: 600; }
+  .badge.ok      { background: rgba(34,197,94,.2);  color: #86efac; }
+  .badge.skipped { background: rgba(245,158,11,.2); color: #fcd34d; }
+  .badge.error   { background: rgba(239,68,68,.2);  color: #fca5a5; }
+  a.btn-link { color: var(--accent); text-decoration: none; margin-right: 10px; }
+  a.btn-link:hover { text-decoration: underline; }
+  pre.log { background: #0b1220; color: #cbd5e1; padding: 10px 12px; border-radius: 6px;
+            font-family: ui-monospace, Consolas, monospace; font-size: 12px;
+            max-height: 220px; overflow: auto; border: 1px solid var(--border);
+            white-space: pre-wrap; }
+  details summary { cursor: pointer; color: var(--muted); font-size: 12px; }
+  .kv { display: grid; grid-template-columns: 110px 1fr; gap: 4px 12px; font-size: 13px; }
+  .kv .k { color: var(--muted); }
+  #filelist { max-height: 240px; overflow: auto; font-size: 12px;
+              background: var(--p2); padding: 8px 10px; border-radius: 6px;
+              border: 1px solid var(--border); }
+  #filelist li { font-family: ui-monospace, Consolas, monospace; margin: 2px 0; }
+</style>
+</head>
+<body>
+<header>
+  <h1>mcap -&gt; mp4 在线转换</h1>
+  <div class="sub">浏览器上传 mcap -&gt; 云端用 mcap2mp4_app 转码 -&gt; 下载 mp4。</div>
+</header>
+
+<main>
+  <section class="card">
+    <h2>1. 选择输入文件夹（A）</h2>
+    <p class="hint">点【选择文件夹】弹窗选你本地的「输入文件夹 A」（里面多个 session 子文件夹，每个含 session.json + ego_*.mcap）。建议用 Chrome / Firefox / Edge。<b>IE 不支持</b>。</p>
+    <div class="row">
+      <input type="file" id="folderPicker" webkitdirectory multiple
+             directory multiple style="max-width:420px;color:var(--fg)">
+      <button id="clearBtn" class="secondary" disabled>清空选择</button>
+      <span id="pickInfo" class="hint">尚未选择文件夹。</span>
+    </div>
+    <ul id="filelist" style="margin-top:10px;display:none"></ul>
+  </section>
+
+  <section class="card">
+    <h2>2. 上传</h2>
+    <p class="hint">逐文件 XHR 上传，传输进度实时显示。建议上传时不要关闭页面。</p>
+    <div class="row">
+      <button id="uploadBtn" class="secondary" disabled>开始上传</button>
+      <button id="cancelBtn" class="danger" disabled>取消未完成的上传</button>
+      <span id="uplInfo" class="hint">未开始</span>
+    </div>
+    <div class="progress" id="uplBar"><div></div></div>
+  </section>
+
+  <section class="card">
+    <h2>3. 转换</h2>
+    <p class="hint">上传完成后点【开始转换】。转码在云端后台线程跑，页面上每 1.5 秒刷新一次。</p>
+    <div class="row">
+      <button id="convertBtn" disabled>开始转换</button>
+      <button id="resetBtn" class="secondary">重置整个 job</button>
+      <span id="statePill" class="pill pending">pending</span>
+    </div>
+    <div class="kv" style="margin-top:10px">
+      <div class="k">当前</div><div id="curName">—</div>
+      <div class="k">进度</div><div id="progText">0 / 0</div>
+      <div class="k">耗时</div><div id="elapsed">—</div>
+    </div>
+    <div class="progress" id="progBar"><div></div></div>
+    <details style="margin-top:10px"><summary>实时日志（最近 200 条）</summary>
+      <pre id="log" class="log"></pre>
+    </details>
+  </section>
+
+  <section class="card">
+    <h2>4. 已生成的 mp4（点击下载）</h2>
+    <div class="warn-box">
+      提示：本服务输出的是标准 <b>H.265/HEVC + MP4</b>。Chrome / Firefox / Edge 浏览器里
+      <code>&lt;video&gt;</code> 一般播不了（HEVC 在浏览器原生支持很差），请【下载】按钮存到本地用
+      <b>VLC / PotPlayer / ffmpeg</b> 打开。
+    </div>
+    <table style="margin-top:10px">
+      <thead><tr><th>文件名</th><th>大小</th><th>状态</th><th>耗时</th><th>操作</th></tr></thead>
+      <tbody id="resultBody"><tr><td colspan="5" class="hint">暂无</td></tr></tbody>
+    </table>
+  </section>
+</main>
+
+<script>
+"use strict";
+
+// ---------- 工具 ----------
+function $(s) { return document.querySelector(s); }
+function fmtSize(n) {
+  if (!n && n !== 0) return "—";
+  var u = ["B","KB","MB","GB","TB"], i = 0, x = n;
+  while (x >= 1024 && i < u.length-1) { x /= 1024; i++; }
+  return (x < 10 && i > 0 ? x.toFixed(2) : x.toFixed(1)) + " " + u[i];
+}
+function fmtSec(sec) {
+  if (sec == null) return "—";
+  sec = Math.round(sec);
+  var m = Math.floor(sec / 60), r = sec % 60;
+  return m > 0 ? (m + "m" + r + "s") : (r + "s");
+}
+function setPill(s) {
+  var el = $("#statePill");
+  el.className = "pill " + s;
+  el.textContent = s;
+}
+
+// ---------- 状态 ----------
+var STATE = {
+  jobId: null,
+  files: [],            // [{rel, size, file}]
+  cancelled: false,
+  polling: null,
+};
+
+// ---------- 选文件夹 ----------
+$("#folderPicker").addEventListener("change", function() {
+  STATE.files = [];
+  STATE.jobId = null;
+  var seen = {};
+  var ul = $("#filelist"); ul.innerHTML = ""; ul.style.display = "none";
+  var all = this.files || [];
+  if (!all.length) {
+    $("#pickInfo").textContent = "尚未选择文件夹。";
+    $("#uploadBtn").disabled = true;
+    $("#clearBtn").disabled = true;
+    return;
+  }
+  for (var i = 0; i < all.length; i++) {
+    var f = all[i];
+    var rel = f.webkitRelativePath || f.name;
+    var lower = rel.toLowerCase();
+    if (!(lower.endsWith(".mcap") || lower.endsWith(".json"))) continue;
+    if (seen[rel]) continue;  // Win7 上偶有同 relpath 重复
+    seen[rel] = true;
+    STATE.files.push({ rel: rel, size: f.size, file: f });
+  }
+  // 提取顶层 session 数
+  var tops = {};
+  for (var k = 0; k < STATE.files.length; k++) {
+    var top = STATE.files[k].rel.split("/")[0];
+    tops[top] = (tops[top] || 0) + 1;
+  }
+  var totalSize = 0;
+  for (var j = 0; j < STATE.files.length; j++) totalSize += STATE.files[j].size;
+  $("#pickInfo").textContent = "已选 " + STATE.files.length + " 个文件，" +
+    Object.keys(tops).length + " 个 session，总 " + fmtSize(totalSize);
+  $("#uploadBtn").disabled = STATE.files.length === 0;
+  $("#clearBtn").disabled = false;
+  ul.style.display = "block";
+  for (var r = 0; r < Math.min(STATE.files.length, 200); r++) {
+    var li = document.createElement("li");
+    li.textContent = STATE.files[r].rel + "  (" + fmtSize(STATE.files[r].size) + ")";
+    ul.appendChild(li);
+  }
+  if (STATE.files.length > 200) {
+    var li2 = document.createElement("li");
+    li2.textContent = "... 还有 " + (STATE.files.length - 200) + " 个未列出";
+    ul.appendChild(li2);
+  }
+});
+
+$("#clearBtn").addEventListener("click", function() {
+  $("#folderPicker").value = "";
+  STATE.files = [];
+  $("#filelist").style.display = "none";
+  $("#filelist").innerHTML = "";
+  $("#pickInfo").textContent = "尚未选择文件夹。";
+  $("#uploadBtn").disabled = true;
+  $("#clearBtn").disabled = true;
+});
+
+// ---------- 创建 job ----------
+function createJob() {
+  return new Promise(function(resolve, reject) {
+    var xhr = new XMLHttpRequest();
+    xhr.open("POST", "/api/jobs");
+    xhr.onreadystatechange = function() {
+      if (xhr.readyState !== 4) return;
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try { resolve(JSON.parse(xhr.responseText)); }
+        catch (e) { reject(new Error("bad json")); }
+      } else reject(new Error("HTTP " + xhr.status));
+    };
+    xhr.send();
+  });
+}
+
+// ---------- 上传一个文件 ----------
+function uploadOne(jobId, item) {
+  return new Promise(function(resolve, reject) {
+    var xhr = new XMLHttpRequest();
+    xhr.open("POST", "/api/jobs/" + jobId + "/upload");
+    var fd = new FormData();
+    fd.append("relpath", item.rel);
+    fd.append("file", item.file, item.file.name);
+    xhr.upload.onprogress = function(ev) {
+      if (ev.lengthComputable) {
+        item.uploaded = ev.loaded;
+        updateUplProgress();
+      }
+    };
+    xhr.onreadystatechange = function() {
+      if (xhr.readyState !== 4) return;
+      if (xhr.status >= 200 && xhr.status < 300) {
+        item.uploaded = item.size;
+        item.done = true;
+        updateUplProgress();
+        resolve();
+      } else {
+        var msg = "HTTP " + xhr.status;
+        try { var j = JSON.parse(xhr.responseText); if (j.detail) msg = j.detail; } catch(e){}
+        reject(new Error(item.rel + ": " + msg));
+      }
+    };
+    xhr.onerror = function() { reject(new Error("network")); };
+    item._xhr = xhr;
+    xhr.send(fd);
+  });
+}
+
+// ---------- 上传全部（顺序，避免并发读大文件） ----------
+$("#uploadBtn").addEventListener("click", async function() {
+  if (!STATE.files.length) return;
+  $("#uploadBtn").disabled = true;
+  $("#clearBtn").disabled = true;
+  $("#cancelBtn").disabled = false;
+  STATE.cancelled = false;
+  if (!STATE.jobId) {
+    try {
+      var j = await createJob();
+      STATE.jobId = j.id;
+    } catch (e) {
+      $("#uplInfo").textContent = "建 job 失败：" + e.message;
+      $("#uploadBtn").disabled = false;
+      $("#cancelBtn").disabled = true;
+      return;
+    }
+  }
+  for (var i = 0; i < STATE.files.length; i++) {
+    if (STATE.cancelled) {
+      $("#uplInfo").textContent = "已取消（已传 " + i + "/" + STATE.files.length + "）";
+      return;
+    }
+    var item = STATE.files[i];
+    item.uploaded = 0; item.done = false;
+    $("#uplInfo").textContent = "上传 " + (i+1) + "/" + STATE.files.length + "：" + item.rel;
+    try {
+      await uploadOne(STATE.jobId, item);
+    } catch (e) {
+      $("#uplInfo").textContent = "失败：" + e.message;
+      STATE.cancelled = true;
+      $("#uploadBtn").disabled = false;
+      $("#cancelBtn").disabled = true;
+      return;
+    }
+  }
+  $("#uplInfo").textContent = "全部上传完成 (" + STATE.files.length + " 个文件)。";
+  $("#cancelBtn").disabled = true;
+  $("#convertBtn").disabled = false;
+  // 顺手拉一次状态
+  refresh();
+});
+
+$("#cancelBtn").addEventListener("click", function() {
+  STATE.cancelled = true;
+  for (var i = 0; i < STATE.files.length; i++) {
+    if (STATE.files[i]._xhr && !STATE.files[i].done) {
+      try { STATE.files[i]._xhr.abort(); } catch(e){}
+    }
+  }
+  $("#cancelBtn").disabled = true;
+});
+
+function updateUplProgress() {
+  var total = 0, sent = 0;
+  for (var i = 0; i < STATE.files.length; i++) {
+    total += STATE.files[i].size;
+    sent += STATE.files[i].uploaded || 0;
+  }
+  var pct = total ? Math.min(100, Math.round(sent / total * 100)) : 0;
+  $("#uplBar").firstElementChild.style.width = pct + "%";
+}
+
+// ---------- 开始转换 ----------
+$("#convertBtn").addEventListener("click", async function() {
+  $("#convertBtn").disabled = true;
+  try {
+    var xhr = new XMLHttpRequest();
+    xhr.open("POST", "/api/jobs/" + STATE.jobId + "/convert");
+    xhr.onreadystatechange = function() {
+      if (xhr.readyState !== 4) return;
+      if (xhr.status >= 200 && xhr.status < 300) {
+        startPolling();
+      } else {
+        $("#uplInfo").textContent = "启动转码失败：HTTP " + xhr.status;
+        $("#convertBtn").disabled = false;
+      }
+    };
+    xhr.send();
+  } catch (e) {
+    $("#uplInfo").textContent = "启动转码异常：" + e.message;
+    $("#convertBtn").disabled = false;
+  }
+});
+
+function startPolling() {
+  if (STATE.polling) return;
+  STATE.polling = setInterval(refresh, 1500);
+  refresh();
+}
+
+async function refresh() {
+  if (!STATE.jobId) return;
+  try {
+    var xhr = new XMLHttpRequest();
+    xhr.open("GET", "/api/jobs/" + STATE.jobId + "/status");
+    xhr.onreadystatechange = function() {
+      if (xhr.readyState !== 4) return;
+      if (xhr.status >= 200 && xhr.status < 300) {
+        render(JSON.parse(xhr.responseText));
+      }
+    };
+    xhr.send();
+  } catch (e) {}
+}
+
+function render(s) {
+  setPill(s.state);
+  $("#curName").textContent = s.current || "—";
+  var total = s.total || 0, done = s.done || 0, failed = s.failed || 0;
+  $("#progText").textContent = total
+    ? (done + failed) + " / " + total + "（成功 " + done + "，失败/跳过 " + failed + "）"
+    : "0 / 0";
+  var pct = total ? Math.round((done + failed) / total * 100) : 0;
+  $("#progBar").firstElementChild.style.width = pct + "%";
+  var end = s.state === "running" ? Date.now()/1000 : (s.updated || s.created);
+  if (s.created) $("#elapsed").textContent = fmtSec(end - s.created);
+  $("#log").textContent = (s.log || []).join("\n");
+  $("#log").scrollTop = $("#log").scrollHeight;
+  // 渲染文件表
+  var byName = {};
+  for (var i = 0; i < (s.results || []).length; i++) {
+    var r = s.results[i]; byName[r.name + ".mp4"] = r;
+  }
+  var rows = [];
+  var files = s.files || [];
+  for (var j = 0; j < files.length; j++) {
+    var f = files[j];
+    var meta = byName[f.name];
+    var status = meta ? meta.status : "ok";
+    var badgeHtml = '<span class="badge ' + status + '">' + status + '</span>';
+    var extra = (meta && meta.error) ? ' <span class="hint">' + escapeHtml(meta.error) + '</span>' : '';
+    var secs = (meta && meta.seconds != null) ? fmtSec(meta.seconds) : "—";
+    var dl = "/api/jobs/" + STATE.jobId + "/files/" + encodeURIComponent(f.name);
+    rows.push('<tr>'
+      + '<td class="name">' + escapeHtml(f.name) + '</td>'
+      + '<td>' + fmtSize(f.size) + '</td>'
+      + '<td>' + badgeHtml + extra + '</td>'
+      + '<td>' + secs + '</td>'
+      + '<td><a class="btn-link" href="' + dl + '" target="_blank" rel="noopener" download>下载</a></td>'
+      + '</tr>');
+  }
+  $("#resultBody").innerHTML = rows.length
+    ? rows.join("")
+    : '<tr><td colspan="5" class="hint">暂无</td></tr>';
+
+  if (s.state === "done" || s.state === "error") {
+    if (STATE.polling) { clearInterval(STATE.polling); STATE.polling = null; }
+  }
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, function(c) {
+    return { "&":"&amp;", "<":"&lt;", ">":"&gt;", "\"":"&quot;", "'":"&#39;" }[c];
+  });
+}
+
+$("#resetBtn").addEventListener("click", async function() {
+  if (STATE.polling) { clearInterval(STATE.polling); STATE.polling = null; }
+  if (STATE.jobId) {
+    try {
+      var xhr = new XMLHttpRequest();
+      xhr.open("DELETE", "/api/jobs/" + STATE.jobId);
+      xhr.send();
+    } catch(e){}
+  }
+  STATE.jobId = null;
+  STATE.files = [];
+  $("#folderPicker").value = "";
+  $("#filelist").style.display = "none";
+  $("#filelist").innerHTML = "";
+  $("#pickInfo").textContent = "尚未选择文件夹。";
+  $("#uplInfo").textContent = "未开始";
+  $("#uplBar").firstElementChild.style.width = "0%";
+  $("#progBar").firstElementChild.style.width = "0%";
+  $("#progText").textContent = "0 / 0";
+  $("#curName").textContent = "—";
+  $("#elapsed").textContent = "—";
+  $("#log").textContent = "";
+  $("#resultBody").innerHTML = '<tr><td colspan="5" class="hint">暂无</td></tr>';
+  setPill("pending");
+  $("#uploadBtn").disabled = true;
+  $("#convertBtn").disabled = true;
+  $("#clearBtn").disabled = true;
+  $("#cancelBtn").disabled = true;
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,2970 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Video Sort</title>
+<link rel="stylesheet" href="/static/css/index.css">
+</head>
+<body>
+
+<div class="toolbar">
+  <!-- NAV TABS -->
+  <div class="nav-tabs">
+    <button class="tab on" data-page="videos" onclick="switchPage('videos')">📋 视频管理</button>
+    <button class="tab" data-page="recorders" onclick="switchPage('recorders')">👤 录入员</button>
+    <button class="tab" data-page="sd_cards" onclick="switchPage('sd_cards')">💾 SD卡</button>
+    <button class="tab" data-page="tasks" onclick="switchPage('tasks')">📝 任务</button>
+    <button class="tab" data-page="environments" onclick="switchPage('environments')">🌍 环境</button>
+    <button class="tab" data-page="statistics" onclick="switchPage('statistics')">📊 统计</button>
+    <button class="tab" data-page="settings" onclick="switchPage('settings')" title="设置">⚙️</button>
+  </div>
+  <div class="nav-tabs-divider"></div>
+  <button class="btn btn-primary" id="btnScan" onclick="scanDir()">扫描目录</button>
+  <span class="count" id="countLabel"></span>
+  <div style="flex:1"></div>
+  <button class="btn btn-outline" id="btnUndoSameAsAbove" onclick="sameAsAboveUndo()" style="display:none;" title="撤回最近一次「同上」操作">↩ 撤回同上</button>
+  <button class="btn btn-success" id="btnManualSave" onclick="manualSave()" title="手动保存当前所有待保存的修改">💾 保存<span id="manualSaveDirtyCount" style="font-size:11px;margin-left:4px;"></span></button>
+  <div class="dropdown" id="uploadDropdown">
+    <button class="btn btn-warning" onclick="toggleUploadMenu(event)">上传… ▼</button>
+    <div class="dropdown-menu" id="uploadMenu">
+      <a class="dropdown-item" onclick="openUploadDialog();toggleUploadMenu()">上传视频</a>
+      <a class="dropdown-item" onclick="openUploadSelectedDialog();toggleUploadMenu()">📤 上传选中</a>
+      <a class="dropdown-item" id="menuSelectAllReady" onclick="selectAllReadyAndOpen();toggleUploadMenu()">📋 一键全选可上传的</a>
+      <a class="dropdown-item" onclick="openExportDialog();toggleUploadMenu()">导出TXT</a>
+    </div>
+  </div>
+  <button class="btn btn-danger" id="btnDeleteSelected" onclick="deleteSelected()" style="display:none;">删除选中</button>
+  <div class="dropdown" id="cleanCacheDropdown">
+  <button class="btn btn-outline" onclick="toggleCleanCacheMenu(event)" title="清理缓存选项">🧹 清理缓存 ▼</button>
+  <div class="dropdown-menu" id="cleanCacheMenu">
+    <a class="dropdown-item" onclick="cleanOrphanCache();toggleCleanCacheMenu()">清理孤儿缓存（CSV中已删除的残留文件）</a>
+    <a class="dropdown-item" style="color:#faad14;" onclick="cleanUploadedCache()">清除已上传视频源文件（保留封面图）</a>
+  </div>
+</div>
+  <button class="btn btn-outline" id="btnToggleProgress" onclick="openPreprocessConfirm()" title="查看待处理视频并启动预处理">🔧 预处理</button>
+</div>
+
+<!-- 预处理进度面板（默认隐藏） -->
+<div id="progressPanel" style="display:none; background:#fff; border-bottom:1px solid #e8e8e8; padding:10px 20px; font-size:13px; flex-shrink:0;">
+  <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+    <span style="font-weight:600; color:#333;">预处理</span>
+    <span id="progressSummary" style="color:#888; font-size:12px;"></span>
+    <div style="flex:1"></div>
+    <label style="font-size:12px; color:#888; display:flex; align-items:center; gap:4px;">
+      <input type="checkbox" id="chkAutoRefresh" checked onchange="toggleAutoRefresh()"> 自动刷新(3s)
+    </label>
+  </div>
+  <div id="progressBars" style="margin-top:8px; display:flex; gap:12px; flex-wrap:wrap;"></div>
+  <details style="margin-top:6px;">
+    <summary style="cursor:pointer; color:#1677ff; font-size:12px;">详情（点开看每个视频状态）</summary>
+    <div id="progressDetails" style="margin-top:6px; max-height:200px; overflow-y:auto; font-size:12px;"></div>
+  </details>
+</div>
+
+<!-- 预处理确认对话框：先看清单再确认 -->
+<div class="dialog-overlay hidden" id="preprocessConfirmDialog">
+  <div class="dialog" style="width:600px;max-width:95vw;max-height:80vh;display:flex;flex-direction:column;">
+    <h3>🔧 预处理待处理视频</h3>
+    <div id="preprocessConfirmInfo" style="font-size:13px;padding:8px;background:#f5f5f5;border-radius:6px;margin-bottom:8px;"></div>
+    <div id="preprocessConfirmList" style="flex:1;overflow-y:auto;border:1px solid #e8e8e8;border-radius:4px;padding:6px;background:#fafafa;font-size:12px;"></div>
+    <div class="dialog-actions" style="margin-top:10px;">
+      <span style="flex:1;color:#888;font-size:12px;" id="preprocessConfirmHint">💡 提示：每个视频约 3-5 分钟。处理中可关闭此弹窗（后台继续）。</span>
+      <button class="btn btn-gray" onclick="closePreprocessConfirm()">取消</button>
+      <button class="btn btn-primary" id="btnPreprocessConfirmStart" onclick="confirmAndStartPreprocess()">开始处理</button>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE: videos (existing single-page content) -->
+<section class="page-panel" data-page="videos">
+<div class="status-bar" id="statusBar"></div>
+
+<div class="preview-area" id="previewArea">
+  <div class="preview-top">
+    <div class="preview-video-wrap">
+      <video id="videoPlayer" controls></video>
+    </div>
+    <div class="preview-form" id="previewForm"></div>
+  </div>
+  <div class="preview-path" id="previewPath"></div>
+  <div class="preview-actions">
+    <button class="btn btn-success btn-small" onclick="saveAll()">保存</button>
+    <button class="btn btn-danger btn-small" onclick="closePlayer()">关闭预览</button>
+    <div class="preview-nav">
+      <button class="btn btn-gray btn-small" onclick="navPreview(-1)">◀ 上一个</button>
+      <button class="btn btn-gray btn-small" onclick="navPreview(1)">下一个 ▶</button>
+    </div>
+  </div>
+</div>
+
+<div class="col-toggle-bar" id="colToggleBar">
+  <span class="label">显示列：</span>
+</div>
+
+<!-- 共享筛选条（视频管理 ↔ 画廊视图） -->
+<div class="shared-filter-bar" id="sharedFilterBar">
+  <span class="label">筛选：</span>
+  <select class="subtoolbar-filter" id="vFilterDevice"><option value="">所有设备</option></select>
+  <select class="subtoolbar-filter" id="vFilterRecorder"><option value="">所有录入员</option></select>
+  <select class="subtoolbar-filter" id="vFilterTask"><option value="">所有任务</option></select>
+  <select class="subtoolbar-filter" id="vFilterUploaded">
+    <option value="">全部状态</option>
+    <option value="Yes">已上传</option>
+    <option value="No">未上传</option>
+  </select>
+  <select class="subtoolbar-filter" id="vFilterLocation">
+    <option value="thisPC_local">本机本地</option>
+    <option value="">全部状态</option>
+    <option value="thisPC_history">本机历史</option>
+    <option value="otherPC_local">其他本地</option>
+    <option value="otherPC_history">其他历史</option>
+  </select>
+  <select class="subtoolbar-filter" id="vFilterType">
+    <option value="">全部类型</option>
+    <option value="mp4">MP4</option>
+    <option value="hmd">HMD</option>
+  </select>
+  <button class="btn btn-gray btn-small" onclick="resetSharedFilters()">清空</button>
+  <button class="btn btn-outline btn-small" id="btnViewToggle" onclick="toggleVideoView()" title="切换表格 / 画廊视图">📋 画廊</button>
+  <span style="flex:1"></span>
+  <span id="vFilterCount" style="font-size:12px;color:#888;"></span>
+</div>
+
+<!-- HMD inline preview panel (toggle via toolbar button) -->
+<div class="hmd-panel" id="hmdPanel" style="display:none;">
+  <div class="hmd-panel-header">
+    <h3 style="margin:0;font-size:14px;">🎬 HMD 双目预览</h3>
+    <span id="hmdPanelMeta" style="font-size:11px;color:#9aa4ad;flex:1;margin-left:12px;">未选择 session</span>
+    <button class="btn btn-gray btn-small" onclick="closeHmdPanel()">关闭</button>
+  </div>
+  <div class="hmd-stage">
+    <div class="hmd-pane">
+      <video id="hmdLeftVideo" hidden></video>
+      <canvas id="hmdLeftCanvas" width="960" height="540"></canvas>
+      <div class="hmd-pane-label">左眼 (camera 0)</div>
+      <div class="hmd-pane-stats" id="hmdLeftStat">--</div>
+    </div>
+    <div class="hmd-pane">
+      <video id="hmdRightVideo" hidden></video>
+      <canvas id="hmdRightCanvas" width="960" height="540"></canvas>
+      <div class="hmd-pane-label">右眼 (camera 1)</div>
+      <div class="hmd-pane-stats" id="hmdRightStat">--</div>
+    </div>
+  </div>
+  <div class="hmd-controls">
+    <button class="btn btn-gray btn-small" id="hmdPlayBtn" disabled>⏯</button>
+    <button class="btn btn-gray btn-small" id="hmdBackBtn" disabled>⏮ -5s</button>
+    <button class="btn btn-gray btn-small" id="hmdFwdBtn" disabled>+5s ⏭</button>
+    <input id="hmdSeek" type="range" min="0" max="1000" value="0" step="1" disabled style="flex:1;" />
+    <span class="hmd-time" id="hmdTimeEl">00:00.0 / 00:00.0</span>
+    <span class="hmd-hud" id="hmdHudEl">L=0 R=0</span>
+    <span style="display:inline-flex;gap:2px;margin-left:8px;">
+      <button class="btn btn-gray btn-small hmd-rate-btn" data-rate="1">1×</button>
+      <button class="btn btn-gray btn-small hmd-rate-btn" data-rate="5">5×</button>
+      <button class="btn btn-gray btn-small hmd-rate-btn" data-rate="10">10×</button>
+      <button class="btn btn-gray btn-small hmd-rate-btn" data-rate="16">16×</button>
+    </span>
+  </div>
+  <div id="hmdErrBox" class="hmd-err" style="display:none;"></div>
+</div>
+
+<div class="table-wrap" id="tableWrap">
+  <div class="empty-state">
+    <h2>Video Sort</h2>
+    <p>输入目录路径并点击"扫描目录"开始</p>
+  </div>
+</div>
+
+<!-- 画廊视图（与表格共用工具栏 + 筛选 + 列显隐 chip） -->
+<div class="gallery-wrap hidden" id="galleryWrap">
+  <div class="gallery-grid" id="galleryGrid"></div>
+  <div class="gallery-empty hidden" id="galleryEmpty">尚无视频记录；先在工具栏输入目录并点击「扫描目录」。</div>
+  <!-- 全屏 overlay（边看边填编辑器） -->
+  <div class="gallery-overlay hidden" id="galleryOverlay">
+    <button class="gallery-overlay-close" onclick="galleryOverlayClose()">✕ Esc</button>
+    <button class="gallery-overlay-prev" onclick="galleryOverlayNav(-1)">◀</button>
+    <button class="gallery-overlay-next" onclick="galleryOverlayNav(1)">▶</button>
+    <div class="gallery-overlay-body" id="galleryOverlayBody"></div>
+  </div>
+</div>
+
+<!-- upload dialog -->
+<div class="dialog-overlay hidden" id="uploadDialog">
+  <div class="dialog" style="width:640px;">
+    <h3>上传视频到 publish.example.com</h3>
+    <div class="dialog-section">
+      <label>上传设置</label>
+      <div id="uploadSettings" style="font-size:12px;color:#666;margin:4px 0;">
+        <div>国家: <span id="uploadCountry">CN</span> | 区域: <span id="uploadRegion">Shanghai</span> | 录制者: <span id="uploadRecorder">lingxu zhou</span></div>
+        <div>分类: <span id="uploadCategory">industrial_manufacturing</span> / <span id="uploadSubcategory">mfg_other</span></div>
+      </div>
+    </div>
+    <div class="dialog-section">
+      <label>选择视频（留空则上传所有本地视频）</label>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+        <span style="font-size:12px;color:#666;">范围:</span>
+        <input type="text" class="range-input" id="uploadRowRange" placeholder="例如 1-10" oninput="onUploadRangeInput()" />
+        <span style="font-size:12px;color:#999;">（从第x到第y个视频）</span>
+      </div>
+      <div class="dialog-row-list" id="uploadRowList"></div>
+    </div>
+    <div class="dialog-section">
+      <label>生成结果</label>
+      <div id="uploadResult" style="font-size:13px;color:#52c41a;padding:8px;background:#f6ffed;border-radius:6px;display:none;"></div>
+    </div>
+    <div class="dialog-section" style="display:flex;align-items:center;gap:8px;">
+      <input type="checkbox" id="chkDeleteAfterUpload" style="width:16px;height:16px;cursor:pointer;" />
+      <label for="chkDeleteAfterUpload" style="font-size:13px;color:#333;cursor:pointer;user-select:none;">
+        🧹 传完即删（删除 HMD 源文件 + 预览视频 + 预览帧，保留封面）
+      </label>
+    </div>
+    <div class="dialog-actions">
+      <button class="btn btn-gray" id="btnUploadCancel" onclick="closeUploadDialog()">取消</button>
+      <button class="btn btn-primary" id="btnGenerateScript" onclick="generateUploadScript()">生成上传脚本</button>
+      <button class="btn btn-success" id="btnRunUpload" onclick="runUploadCmd()" style="display:none;">开始上传</button>
+    </div>
+  </div>
+</div>
+
+<!-- upload selected dialog -->
+<div class="dialog-overlay hidden" id="uploadSelectedDialog">
+  <div class="dialog" style="width:480px;">
+    <h3>📤 批量上传选中视频</h3>
+    <div class="dialog-section">
+      <div id="uploadSelectedInfo" style="font-size:14px;padding:8px;background:#f5f5f5;border-radius:6px;">
+        已选中 <b id="uploadSelectedCount">0</b> 个视频<span id="uploadSelectedSkipped" style="display:none;"></span>
+      </div>
+      <div id="uploadSelectedSkippedList" style="display:none;margin-top:6px;padding:8px;background:#fff3cd;border:1px solid #ffc107;border-radius:6px;font-size:13px;max-height:120px;overflow-y:auto;">
+      </div>
+    </div>
+    <div class="dialog-section" style="display:flex;align-items:center;gap:8px;">
+      <input type="checkbox" id="chkDeleteOriginal" style="width:16px;height:16px;cursor:pointer;" />
+      <label for="chkDeleteOriginal" style="font-size:13px;cursor:pointer;">🗑️ 删除原视频（HMD 源文件）</label>
+    </div>
+    <div class="dialog-section" style="display:flex;align-items:center;gap:8px;">
+      <input type="checkbox" id="chkDeletePreview" style="width:16px;height:16px;cursor:pointer;" />
+      <label for="chkDeletePreview" style="font-size:13px;cursor:pointer;">🧹 删除预览视频和预览帧（保留封面）</label>
+    </div>
+    <div class="dialog-actions">
+      <button class="btn btn-gray" onclick="closeUploadSelectedDialog()">取消</button>
+      <button class="btn btn-success" id="btnRunUploadSelected" onclick="runUploadSelected()">开始上传</button>
+    </div>
+  </div>
+</div>
+
+<!-- 批量上传进度面板 -->
+<div class="dialog-overlay hidden" id="batchUploadProgressDialog">
+  <div class="dialog" style="width:700px;max-width:95vw;">
+    <h3>📤 批量上传进度</h3>
+    <!-- 进度条 -->
+    <div style="margin:12px 0;">
+      <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;">
+        <span id="batchProgLabel">准备中...</span>
+        <span id="batchProgCount">0/0</span>
+      </div>
+      <div style="background:#e8e8e8;border-radius:4px;height:10px;overflow:hidden;">
+        <div id="batchProgBar" style="background:linear-gradient(90deg,#1677ff,#69b1ff);height:100%;width:0%;transition:width 0.4s;border-radius:4px;"></div>
+      </div>
+      <div style="font-size:12px;color:#888;margin-top:4px;" id="batchProgMsg"></div>
+    </div>
+    <!-- 实时日志区 -->
+    <div id="batchTerminal" style="background:#0d1117;color:#c9d1d9;font-family:Consolas,'Courier New',monospace;font-size:12px;padding:10px;border-radius:6px;max-height:320px;overflow-y:auto;white-space:pre-wrap;word-break:break-all;line-height:1.6;border:1px solid #30363d;">
+    </div>
+    <div class="dialog-actions">
+      <button class="btn btn-gray" id="btnBatchUploadClose" onclick="closeBatchUploadDialog()">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- upload terminal panel (black window) -->
+<div class="dialog-overlay hidden" id="uploadTerminal">
+  <div class="terminal-panel">
+    <div class="terminal-header">
+      <span>📺 上传进度 — publish.example.com</span>
+      <div class="terminal-header-right">
+        <span id="terminalStatus" style="font-size:12px;color:#888;margin-right:12px;"></span>
+        <button class="btn btn-small btn-outline" id="btnTerminalClose" onclick="closeUploadTerminal()" style="color:#ccc;border-color:#555;">关闭</button>
+      </div>
+    </div>
+    <div class="terminal-body" id="terminalBody">
+      <div class="terminal-line dim">等待上传开始...</div>
+    </div>
+  </div>
+</div>
+
+<!-- upload template dialog (一键复制上传信息) -->
+<div class="ut-dialog-overlay hidden" id="utDialog">
+  <div class="ut-dialog" style="max-width:680px;">
+    <div class="ut-header">
+      <h3>📋 上传信息模板</h3>
+      <span class="ut-video-name" id="utVideoName">--</span>
+      <button class="btn btn-gray btn-small" onclick="closeUploadTemplate()">✕</button>
+    </div>
+    <div class="ut-body" id="utBody">
+      <div style="text-align:center;padding:40px;color:#888;">加载中...</div>
+    </div>
+    <!-- 上传进度条 -->
+    <div id="uploadProgress" class="ut-progress" style="display:none;margin:0 16px 8px;padding:12px 16px;background:#f0f9ff;border-radius:8px;border:1px solid #bae7ff;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+        <span style="font-weight:600;color:#1677ff;" id="uploadProgressLabel">上传中...</span>
+        <span style="font-size:13px;color:#555;" id="uploadProgressCount">0/0</span>
+      </div>
+      <div style="background:#e8e8e8;border-radius:4px;height:8px;overflow:hidden;">
+        <div id="uploadProgressBar" style="background:linear-gradient(90deg,#1677ff,#69b1ff);height:100%;width:0%;border-radius:4px;transition:width 0.3s;"></div>
+      </div>
+      <div style="font-size:12px;color:#888;margin-top:4px;" id="uploadProgressMsg"></div>
+    </div>
+    <!-- 上传后清理选项 -->
+    <div class="ut-cleanup-opt" style="padding:8px 20px;border-top:1px solid #f0f0f0;display:flex;align-items:center;gap:8px;background:#fff;">
+      <input type="checkbox" id="utChkDeleteLocal" style="width:16px;height:16px;cursor:pointer;" onchange="_utDeleteAfterUpload=this.checked" />
+      <label for="utChkDeleteLocal" style="font-size:12px;color:#555;cursor:pointer;user-select:none;">
+        🧹 上传成功后删除本地视频、预览帧、预览视频（仅保留封面）
+      </label>
+    </div>
+    <div class="ut-actions" style="flex-wrap:wrap;gap:6px;">
+      <div class="ut-actions-left">
+        <button class="ut-copy-all-btn" onclick="copyAllFields()" title="复制所有非空字段，格式为 标签: 值">📄 复制全部字段</button>
+        <button class="ut-copy-all-btn" onclick="copyAllValuesOnly()" title="仅复制所有字段值，一行一个">📋 仅复制值列表</button>
+      </div>
+      <button class="btn btn-gray btn-small" onclick="closeUploadTemplate()">关闭</button>
+      <button class="ut-upload-now-btn" id="btnUploadSingle" onclick="startAutoUpload()" title="直接上传当前视频">📤 上传本视频</button>
+    </div>
+  </div>
+</div>
+
+<!-- export dialog -->
+<div class="dialog-overlay hidden" id="exportDialog">
+  <div class="dialog">
+    <h3>导出 TXT</h3>
+    <div class="dialog-section">
+      <label>选择列（顺序即导出顺序）</label>
+      <div class="dialog-col-list" id="exportColList"></div>
+    </div>
+    <div class="dialog-section">
+      <label>选择行（留空则导出全部）</label>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+        <span style="font-size:12px;color:#666;">范围:</span>
+        <input type="text" class="range-input" id="exportRowRange" placeholder="例如 1-10" oninput="onExportRangeInput()" />
+        <span style="font-size:12px;color:#999;">（从第x到第y个视频）</span>
+      </div>
+      <div class="dialog-row-list" id="exportRowList"></div>
+    </div>
+    <div class="dialog-section" style="flex-direction:row;align-items:center;gap:8px;">
+      <label style="margin:0;">分隔符</label>
+      <input type="text" class="sep-input" id="exportSep" value="." maxlength="5" />
+      <span style="font-size:12px;color:#888;">（单元格之间的连接字符）</span>
+    </div>
+    <div class="dialog-actions">
+      <button class="btn btn-gray" onclick="closeExportDialog()">取消</button>
+      <button class="btn btn-primary" onclick="doExport()">导出</button>
+    </div>
+  </div>
+</div>
+
+<!-- clean-cache-preview dialog -->
+<div class="dialog-overlay hidden" id="cleanCachePreviewDialog">
+  <div class="dialog" style="max-width:800px;max-height:80vh;overflow-y:auto;">
+    <h3>🧹 清除已上传视频源文件 — 扫描结果</h3>
+    <div class="dialog-section" id="cleanCacheSummary"></div>
+    <div class="dialog-section">
+      <label>待删除文件明细（按视频记录列出）</label>
+      <div id="cleanCacheDetail" style="max-height:40vh;overflow-y:auto;font-size:12px;"></div>
+    </div>
+    <div class="dialog-section" style="color:#cf1322;font-size:13px;">
+      ⚠️ 此操作不可恢复！保留封面图（cover.jpg），其余文件将被永久删除。
+    </div>
+    <div class="dialog-actions">
+      <button class="btn btn-gray" onclick="closeCleanCachePreview()">取消</button>
+      <button class="btn btn-danger" id="btnConfirmCleanCache" onclick="executeCleanUploadedCache()">确认删除</button>
+    </div>
+  </div>
+</div>
+
+<!-- apply-all dialog (自动补全：编辑英文时若同中文>1则弹) -->
+<div class="dialog-overlay hidden" id="applyAllDialog">
+  <div class="dialog" style="width:440px;">
+    <h3>同步英文</h3>
+    <p style="line-height:1.7;">
+      发现 <b id="applyAllCount">N</b> 条记录的中文内容相同：
+      <code id="applyAllCn" style="background:#f5f5f5;padding:2px 6px;border-radius:3px;"></code>。<br>
+      是否将这条的英文修改同步到其他 <b id="applyAllOther">(N-1)</b> 条？
+    </p>
+    <div class="dialog-actions">
+      <button class="btn btn-gray" onclick="confirmApplyAll(false)">仅此条</button>
+      <button class="btn btn-primary" onclick="confirmApplyAll(true)">应用到全部</button>
+    </div>
+  </div>
+</div>
+
+<!-- toast container (平局提示) — global, outside any panel -->
+<div id="toast" class="toast hidden"></div>
+</section><!-- /PAGE videos -->
+
+<!-- ============= PAGE: recorders (录入员管理) ============= -->
+<section class="page-panel" data-page="recorders" hidden>
+  <div class="subtoolbar">
+    <span class="subtoolbar-title">👤 录入员管理</span>
+    <button class="btn btn-outline btn-small" onclick="dimAddRow('recorders')">+ 新增</button>
+    <button class="btn btn-success btn-small" id="btnSaveRecorders" onclick="dimSaveDirtyRows('recorders')">保存 <span id="dirtyCountRecorders">(0)</span></button>
+    <button class="btn btn-gray btn-small" onclick="dimReload('recorders')">重载</button>
+    <input type="text" class="subtoolbar-search" id="dimSearchRecorders" placeholder="搜索…" oninput="dimFilterRows('recorders')">
+  </div>
+  <div class="dim-table-wrap">
+    <table class="dim-table" id="dimTableRecorders">
+      <thead><tr id="dimHeadRecorders"></tr></thead>
+      <tbody id="dimBodyRecorders"></tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============= PAGE: sd_cards (SD卡/设备管理) ============= -->
+<section class="page-panel" data-page="sd_cards" hidden>
+  <div class="subtoolbar">
+    <span class="subtoolbar-title">💾 SD卡 / 设备管理</span>
+    <button class="btn btn-outline btn-small" onclick="dimAddRow('sd_cards')">+ 新增</button>
+    <button class="btn btn-success btn-small" id="btnSaveSdCards" onclick="dimSaveDirtyRows('sd_cards')">保存 <span id="dirtyCountSdCards">(0)</span></button>
+    <button class="btn btn-gray btn-small" onclick="dimReload('sd_cards')">重载</button>
+    <input type="text" class="subtoolbar-search" id="dimSearchSdCards" placeholder="搜索…" oninput="dimFilterRows('sd_cards')">
+  </div>
+  <div class="dim-table-wrap">
+    <table class="dim-table" id="dimTableSdCards">
+      <thead><tr id="dimHeadSdCards"></tr></thead>
+      <tbody id="dimBodySdCards"></tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============= PAGE: tasks (任务管理) ============= -->
+<section class="page-panel" data-page="tasks" hidden>
+  <div class="subtoolbar">
+    <span class="subtoolbar-title">📝 任务管理</span>
+    <button class="btn btn-outline btn-small" onclick="dimAddRow('tasks')">+ 新增</button>
+    <button class="btn btn-outline btn-small" onclick="openBatchTaskWizard()">📋 批量粘贴</button>
+    <button class="btn btn-success btn-small" id="btnSaveTasks" onclick="dimSaveDirtyRows('tasks')">保存 <span id="dirtyCountTasks">(0)</span></button>
+    <button class="btn btn-gray btn-small" onclick="dimReload('tasks')">重载</button>
+    <button class="btn btn-outline btn-small btn-sort-on" id="btnTasksAutoSort" onclick="toggleTasksAutoSort()" title="开启后始终按 产品→任务→工具 自动排序">⇅ 自动排序 ✓</button>
+    <input type="text" class="subtoolbar-search" id="dimSearchTasks" placeholder="搜索…" oninput="dimFilterRows('tasks')">
+  </div>
+  <div class="dim-table-wrap">
+    <table class="dim-table" id="dimTableTasks">
+      <thead><tr id="dimHeadTasks"></tr></thead>
+      <tbody id="dimBodyTasks"></tbody>
+    </table>
+  </div>
+  <!-- Task wizard modal lives INSIDE the tasks page-panel so it visually belongs here -->
+  <div class="wizard-overlay hidden" id="taskWizardOverlay">
+    <div class="wizard-dialog">
+      <div class="wizard-title">📝 新增任务（4 元组 → 自动生成 task_id）</div>
+      <div class="wizard-body">
+        <div class="wizard-grid">
+          <label><span>产品 product</span><input type="text" id="tw_product" placeholder="例：GT-01"></label>
+          <label><span>任务 task</span><input type="text" id="tw_task" placeholder="例：手部操作识别"></label>
+          <label><span>工具 tool</span><input type="text" id="tw_tool" placeholder="例：GoPro"></label>
+          <label><span>工序 process</span><input type="text" id="tw_process" placeholder="例：抓握判定"></label>
+        </div>
+        <div class="wizard-result" id="tw_result">填写 4 个字段后预览 task_id →</div>
+        <div class="wizard-extras">
+          <label><span>难度 difficulty</span>
+            <select id="tw_difficulty">
+              <option value="">--</option>
+              <option value="easy">easy</option>
+              <option value="medium">medium</option>
+              <option value="hard">hard</option>
+            </select>
+          </label>
+          <label><span>备注 notes</span><input type="text" id="tw_notes" placeholder="可选"></label>
+        </div>
+      </div>
+      <div class="wizard-actions">
+        <button class="btn btn-gray btn-small" onclick="closeTaskWizard()">取消</button>
+        <button class="btn btn-primary btn-small" onclick="taskWizardConfirm()">生成并添加</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 批量粘贴：每行一条 5 元组，| 分隔；空行 / # 开头跳过 -->
+  <div class="wizard-overlay hidden" id="batchTaskOverlay">
+    <div class="wizard-dialog">
+      <div class="wizard-title">📋 批量新增任务</div>
+      <div class="wizard-body">
+        <p style="font-size:12px;color:#888;margin:0;">
+          每行一条：<code>product | task | tool | process | difficulty | notes</code><br>
+          空行 / <code>#</code> 开头 / 缺字段 → 跳过；备注 notes 留空；已有的 task_id 会跳过。
+        </p>
+        <textarea id="btw_text" rows="12" style="font-family:ui-monospace,Consolas,monospace;font-size:12px;padding:8px;border:1px solid #d9d9d9;border-radius:4px;width:100%;resize:vertical;"
+          placeholder="GT-01 | 手部操作识别 | GoPro | 抓握判定 | easy | 5 次抓握
+GT-01 | 手部操作识别 | GoPro | 旋转判定 | medium | 12 次旋转"></textarea>
+        <div class="wizard-result" id="btw_result">粘贴数据后点「预览」查看每行校验状态</div>
+      </div>
+      <div class="wizard-actions">
+        <button class="btn btn-gray btn-small" onclick="closeBatchTaskWizard()">取消</button>
+        <button class="btn btn-outline btn-small" onclick="batchTaskPreview()">预览</button>
+        <button class="btn btn-primary btn-small" onclick="batchTaskConfirm()">确认添加</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 可编辑下拉选项管理 modal -->
+  <div class="wizard-overlay hidden" id="editOptionsOverlay">
+    <div class="wizard-dialog" style="max-width:480px;">
+      <div class="wizard-title">✎ 编辑下拉选项</div>
+      <div class="wizard-body" id="editOptContent"></div>
+      <div class="wizard-actions">
+        <button class="btn btn-gray btn-small" onclick="closeEditOptionsModal()">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 任务页表格行级校验指示（每行开头的小角标） -->
+  <style>
+    .task-row-status { font-size: 14px; padding: 0 6px; cursor: help; user-select: none; }
+    .task-row-status.ok { color: #389e0d; }
+    .task-row-status.err { color: #cf1322; font-weight: 700; }
+    .btn-tiny { padding: 1px 6px; font-size: 11px; border-radius: 3px; line-height: 1.4; }
+  </style>
+</section>
+
+<!-- ============= PAGE: environments (环境管理) ============= -->
+<section class="page-panel" data-page="environments" hidden>
+  <div class="subtoolbar">
+    <span class="subtoolbar-title">🌍 环境管理</span>
+    <button class="btn btn-outline btn-small" onclick="dimAddRow('environments')">+ 新增</button>
+    <button class="btn btn-success btn-small" id="btnSaveEnvironments" onclick="dimSaveDirtyRows('environments')">保存 <span id="dirtyCountEnvironments">(0)</span></button>
+    <button class="btn btn-gray btn-small" onclick="dimReload('environments')">重载</button>
+    <input type="text" class="subtoolbar-search" id="dimSearchEnvironments" placeholder="搜索…" oninput="dimFilterRows('environments')">
+  </div>
+  <div class="dim-table-wrap">
+    <table class="dim-table" id="dimTableEnvironments">
+      <thead><tr id="dimHeadEnvironments"></tr></thead>
+      <tbody id="dimBodyEnvironments"></tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============= PAGE: statistics (统计) ============= -->
+<section class="page-panel" data-page="statistics" hidden>
+  <div class="subtoolbar">
+    <span class="subtoolbar-title">📊 统计面板</span>
+    <button class="btn btn-outline btn-small" onclick="loadStatistics()">刷新</button>
+    <span class="subtoolbar-status" id="statisticsStatus">未加载</span>
+  </div>
+  <div class="statistics-wrap" id="statisticsWrap" style="flex:1;min-height:0;overflow:auto;padding:20px;background:#fff;border-radius:8px;margin:12px;">
+    <div style="text-align:center;color:#888;padding:40px;">点击「刷新」加载统计数据</div>
+  </div>
+  <style>
+    .stats-section { margin-bottom:24px; }
+    .stats-section h3 { font-size:15px; color:#333; margin-bottom:8px; padding-bottom:4px; border-bottom:2px solid #1677ff; }
+    .stats-table { width:100%; border-collapse:collapse; font-size:12px; margin-bottom:12px; }
+    .stats-table th { background:#fafafa; padding:6px 8px; text-align:left; border:1px solid #e8e8e8; font-weight:600; }
+    .stats-table td { padding:4px 8px; border:1px solid #e8e8e8; }
+    .stats-table tr.warn { background:#fff7e6; }
+    .stats-table tr.over { background:#fff2f0; font-weight:700; }
+    .stats-summary { display:flex; gap:16px; flex-wrap:wrap; margin-bottom:16px; }
+    .stats-card { flex:1; min-width:200px; background:#f6f8fa; border-radius:8px; padding:12px 16px; border:1px solid #e8e8e8; }
+    .stats-card .val { font-size:24px; font-weight:700; color:#1677ff; }
+    .stats-card .label { font-size:11px; color:#888; }
+    .stats-card.warn { background:#fff7e6; border-color:#faad14; }
+    .stats-card.warn .val { color:#faad14; }
+    .stats-card.over { background:#fff2f0; border-color:#ff4d4f; }
+    .stats-card.over .val { color:#cf1322; }
+  </style>
+</section>
+
+<!-- ============= PAGE: settings (设置) ============= -->
+<section class="page-panel" data-page="settings" hidden>
+  <div class="subtoolbar">
+    <span class="subtoolbar-title">⚙️ 设置</span>
+    <button class="btn btn-outline btn-small" onclick="settingsLoad()">刷新</button>
+    <span class="subtoolbar-status" id="settingsStatus">未加载</span>
+  </div>
+  <div class="settings-wrap">
+    <div class="settings-section">
+      <h3>⏱ HMD 时长粗算（size → duration 比例）</h3>
+      <p style="font-size:12px;color:#888;margin:4px 0 12px;">
+        用已处理 HMD session 的（总大小 / 真时长）中位数自动算的系数。
+        若视频管理页 `duration_sec` 后括号里的（估 M:SS）与实际相差太大，可手动覆盖。
+        留空 = 跟随自动值。
+      </p>
+      <div class="settings-row">
+        <label><span>当前使用值</span><input type="text" id="settingsCurrentRatio" readonly></label>
+        <label><span>来源</span><input type="text" id="settingsCurrentSource" readonly></label>
+        <label><span>用户覆盖（MB/分钟）</span>
+          <input type="number" id="settingsUserRatio" step="0.1" min="0.1" placeholder="留空 = 用自动值">
+        </label>
+      </div>
+      <div class="settings-actions">
+        <button class="btn btn-primary btn-small" onclick="settingsSaveRatio()">保存</button>
+        <button class="btn btn-gray btn-small" onclick="settingsResetRatio()">重置为自动</button>
+      </div>
+      <details style="margin-top:12px;">
+        <summary style="cursor:pointer;font-size:13px;color:#1677ff;">查看自动中位数计算样本（最多 10 条）</summary>
+        <div id="settingsSamples" style="margin-top:8px;font-size:11px;color:#666;font-family:ui-monospace,Consolas,monospace;"></div>
+      </details>
+    </div>
+
+    <div class="settings-section">
+      <h3>📁 其它设置</h3>
+      <div class="settings-row">
+        <label><span>扫描目录</span><input type="text" id="settingsScanDir" placeholder="/media\0530"></label>
+      </div>
+      <div class="settings-actions">
+        <button class="btn btn-primary btn-small" onclick="settingsSaveScanDir()">保存扫描目录</button>
+      </div>
+      <p style="font-size:11px;color:#888;margin-top:8px;">保存后，在视频管理页顶部点「扫描目录」即可使用。</p>
+    </div>
+  </div>
+</section>
+
+<script src="/static/js/shared-filters.js"></script>
+<script src="/static/js/gallery-view.js"></script>
+<script src="/static/js/gallery-editor.js"></script>
+<script src="/static/js/auto-upload.js"></script>
+<script src="/static/js/task-validation.js"></script>
+<script>
+const dimCache = {}; // name -> rows[]
+
+let tableData = [];
+let previewIndex = -1;
+let colConfig = [];
+// sortStack: [{col, dir}] —— 数组末尾 = 最高优先级（最后点的那列）
+// 3 状态循环：点击未在 stack 的列 → 推入 {col, dir:'asc'}；
+// 点击已存在且 dir='asc' 的列 → dir 改 'desc'（同时移到末尾=升为第一优先级）；
+// 点击已存在且 dir='desc' 的列 → 从 stack 移除（无排序）。
+let sortStack = [];
+let uploadOpts = null; // 上传选项缓存（国家、场景分类等枚举）
+let scanDirectory = ''; // 当前扫描目录（从配置恢复，或从设置页保存）
+
+window.onload = () => { loadConfig(); };
+
+async function loadConfig() {
+  try {
+    const res = await fetch('/api/config');
+    const cfg = await res.json();
+    const order = cfg.columnOrder || Object.keys(cfg.columnLabels || {});
+    // 防御：API 返回空（config.json 解析失败 / 字段缺失）时退回默认列，避免表格全空白
+    if (!Array.isArray(order) || order.length === 0) {
+      console.warn('[loadConfig] /api/config 未返回列配置，退回 getDefaultColumns()');
+      colConfig = getDefaultColumns();
+    } else {
+      colConfig = order.map(key => ({
+        key,
+        label: cfg.columnLabels[key] || key,
+        type: cfg.columnTypes[key] || 'input',
+        visible: cfg.columnVisibility[key] !== undefined ? cfg.columnVisibility[key] : true,
+        width: cfg.columnWidths[key] || ''
+      }));
+    }
+    // Restore sort settings —— 优先用新格式 sortStack；老格式 sortColumn+sortDirection 兼容回填
+    if (Array.isArray(cfg.sortStack)) {
+      sortStack = cfg.sortStack.filter(s => s && s.col && (s.dir === 'asc' || s.dir === 'desc'));
+    } else if (cfg.sortColumn) {
+      sortStack = [{ col: cfg.sortColumn, dir: cfg.sortDirection === 'desc' ? 'desc' : 'asc' }];
+    } else {
+      sortStack = [];
+    }
+    // Restore scan directory
+    if (cfg.scanDirectory) {
+      scanDirectory = cfg.scanDirectory;
+    }
+  } catch (e) {
+    colConfig = getDefaultColumns();
+  }
+  buildColToggles();
+  bindTableInputSync();
+  initColResize();
+  loadData();
+}
+
+function getDefaultColumns() {
+  return [
+    { key: 'path',                   label: '视频路径',       type: 'path',                   visible: true },
+    { key: 'file_type',              label: '类型',           type: 'select-mp4umi',          visible: true },
+    { key: 'location_status',        label: '状态',           type: 'select-location',        visible: true },
+    { key: 'scan_date',              label: '录入日期',       type: 'input',                  visible: true },
+    { key: 'original_history_date',   label: '原始日期',       type: 'input',                  visible: false },
+    { key: 'device_id',              label: '设备编号',       type: 'select-dimension:sd_cards', visible: true },
+    { key: 'recorder_id',           label: '录入员',         type: 'select-dimension:recorders', visible: true },
+    { key: 'task_id',                label: '产品+任务+工序',   type: 'select-dimension:tasks', visible: true },
+    { key: 'env_id',                 label: '环境',           type: 'select-dimension:environments', visible: true },
+    { key: 'duration_sec',           label: '时长(秒)',       type: 'duration',               visible: true },
+    { key: 'uploaded',               label: '已上传',         type: 'select-yesno',           visible: true },
+    { key: 'extra_description',      label: '额外描述',       type: 'input',                  visible: true },
+    { key: 'score',                  label: '得分',           type: 'input',                  visible: false },
+  ];
+}
+
+function showStatus(msg) {
+  const bar = document.getElementById('statusBar');
+  bar.textContent = msg;
+  bar.classList.add('show');
+  setTimeout(() => bar.classList.remove('show'), 3000);
+}
+
+/* ── sorting ── */
+function toggleSort(colKey) {
+  const idx = sortStack.findIndex(s => s.col === colKey);
+  if (idx === -1) {
+    // 新列 → 推入升序（push 到末尾 = 最高优先级）
+    sortStack.push({ col: colKey, dir: 'asc' });
+  } else {
+    const cur = sortStack[idx];
+    if (cur.dir === 'asc') {
+      // 升 → 降；同时升为第一优先级（移至末尾）
+      cur.dir = 'desc';
+      sortStack.splice(idx, 1);
+      sortStack.push(cur);
+    } else {
+      // 降 → 移除（恢复无排序）
+      sortStack.splice(idx, 1);
+    }
+  }
+  renderTable();
+  saveColConfig();
+}
+
+function compareSingle(aVal, bVal) {
+  // 数字优先：两端都像数字（且非空）时按数字比
+  const aStr = String(aVal ?? '');
+  const bStr = String(bVal ?? '');
+  if (aStr !== '' && bStr !== '') {
+    const aNum = parseFloat(aStr);
+    const bNum = parseFloat(bStr);
+    if (!isNaN(aNum) && !isNaN(bNum)) {
+      return aNum - bNum;
+    }
+  }
+  // 日期 YYYY-MM-DD(...)
+  if (/^\d{4}-\d{2}-\d{2}/.test(aStr) && /^\d{4}-\d{2}-\d{2}/.test(bStr)) {
+    const aDate = new Date(aStr);
+    const bDate = new Date(bStr);
+    if (!isNaN(aDate.getTime()) && !isNaN(bDate.getTime())) {
+      return aDate.getTime() - bDate.getTime();
+    }
+  }
+  return aStr.localeCompare(bStr, 'zh-Hans-CN');
+}
+
+function compareRows(a, b) {
+  for (const { col, dir } of sortStack) {
+    const cmp = compareSingle(a[col], b[col]);
+    if (cmp !== 0) return dir === 'asc' ? cmp : -cmp;
+  }
+  return 0;
+}
+
+/* ── column toggles ── */
+function buildColToggles() {
+  const bar = document.getElementById('colToggleBar');
+  colConfig.forEach((col, i) => {
+    const chip = document.createElement('span');
+    chip.className = 'col-toggle' + (col.visible ? ' on' : '');
+    chip.textContent = col.label;
+    chip.dataset.col = i;
+    chip.onclick = () => {
+      col.visible = !col.visible;
+      chip.classList.toggle('on', col.visible);
+      applyColVisibility();
+      saveColConfig();
+    };
+    bar.appendChild(chip);
+  });
+}
+
+function applyColVisibility() {
+  colConfig.forEach((col, i) => {
+    const cls = `col-${i}`;
+    document.querySelectorAll('.' + cls).forEach(el => {
+      el.classList.toggle('col-hidden', !col.visible);
+    });
+  });
+}
+
+/* ── column resize ── */
+let resizing = null, startX = 0, startWidth = 0;
+
+function initColResize() {
+  // column resize
+  document.addEventListener('mousedown', e => {
+    if (e.target.closest('.resize-handle')) {
+      const handle = e.target.closest('.resize-handle');
+      const col = parseInt(handle.dataset.col);
+      if (isNaN(col) || !colConfig[col]) return;
+      resizing = { col, el: handle };
+      startX = e.clientX;
+      startWidth = colConfig[col].width || 120;
+      handle.classList.add('active');
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  });
+  document.addEventListener('mousemove', e => {
+    if (!resizing) return;
+    const dx = e.clientX - startX;
+    const newWidth = Math.max(60, startWidth + dx);
+    colConfig[resizing.col].width = newWidth;
+    document.querySelectorAll(`.col-${resizing.col}`).forEach(el => {
+      el.style.width = newWidth + 'px';
+    });
+  });
+  document.addEventListener('mouseup', () => {
+    if (resizing) {
+      resizing.el.classList.remove('active');
+      resizing = null;
+      saveColConfig();
+    }
+  });
+
+  // column reorder
+  let dragging = null;
+  const thead = document.querySelector('table thead');
+  if (!thead) return;
+  thead.addEventListener('mousedown', e => {
+    const th = e.target.closest('th[data-col]');
+    if (!th || e.target.closest('.resize-handle')) return;
+    dragging = parseInt(th.dataset.col);
+    th.classList.add('dragging');
+    e.preventDefault();
+  });
+  thead.addEventListener('mousemove', e => {
+    if (dragging === null) return;
+    const th = e.target.closest('th[data-col]');
+    if (!th) return;
+    const targetCol = parseInt(th.dataset.col);
+    if (targetCol === dragging || isNaN(targetCol)) return;
+    document.querySelectorAll('th[data-col]').forEach(h => h.classList.remove('drag-over'));
+    th.classList.add('drag-over');
+  });
+  thead.addEventListener('mouseup', e => {
+    if (dragging === null) return;
+    const th = e.target.closest('th[data-col]');
+    if (th) {
+      const targetCol = parseInt(th.dataset.col);
+      if (!isNaN(targetCol) && targetCol !== dragging) {
+        const [moved] = colConfig.splice(dragging, 1);
+        colConfig.splice(targetCol, 0, moved);
+        renderTable();
+        saveColConfig();
+      }
+    }
+    document.querySelectorAll('th[data-col]').forEach(h => {
+      h.classList.remove('dragging', 'drag-over');
+    });
+    dragging = null;
+  });
+}
+
+async function saveColConfig() {
+  const visibility = {};
+  const widths = {};
+  colConfig.forEach(col => {
+    visibility[col.key] = col.visible;
+    if (col.width) widths[col.key] = col.width;
+  });
+  try {
+    await fetch('/api/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        columnVisibility: visibility,
+        columnWidths: widths,
+        columnOrder: colConfig.map(c => c.key),
+        // 新格式：多列排序栈（保留旧字段以便旧代码读 config 不会丢信息）
+        sortStack: sortStack,
+        sortColumn: sortStack.length ? sortStack[sortStack.length - 1].col : '',
+        sortDirection: sortStack.length ? sortStack[sortStack.length - 1].dir : 'asc'
+      })
+    });
+  } catch (e) { console.error(e); }
+}
+
+/* ── data ── */
+async function loadData() {
+  try {
+    const res = await fetch('/api/data');
+    tableData = await res.json();
+    _populateSharedFilters();
+    _bindSharedFilterChanges();
+    // 恢复未保存的脏数据（崩溃/刷新场景）—— 必须在 render 之前
+    _restoreDirtyEditsOnLoad();
+    // 根据当前 view mode 渲染 + 切换 DOM 显隐
+    if (videoViewMode === 'gallery') {
+      galleryState.loaded = true;
+      document.getElementById('tableWrap')?.classList.add('hidden');
+      document.getElementById('galleryWrap')?.classList.remove('hidden');
+      const btn = document.getElementById('btnViewToggle');
+      if (btn) btn.textContent = '📊 表格';
+      _galleryRender();
+    } else {
+      document.getElementById('tableWrap')?.classList.remove('hidden');
+      document.getElementById('galleryWrap')?.classList.add('hidden');
+      const btn = document.getElementById('btnViewToggle');
+      if (btn) btn.textContent = '📋 画廊';
+      renderTable();
+    }
+    // ── DEBUG: 检查 session_00001 的 env_id ──
+    const _dbg = tableData.find(r => (r.path || '').includes('session_00001'));
+    console.log('[DEBUG loadData] session_00001 env_id=', _dbg && _dbg.env_id, 'path=', _dbg && _dbg.path);
+    // 另一个视图也刷新一次（共享同一 tableData）—— 不改变 DOM 显隐
+    if (videoViewMode === 'gallery') renderTable();
+    else _galleryRender();
+  } catch (e) { console.error(e); }
+}
+
+/* ── scan_date 锁定切换 ── */
+function toggleScanDateLock(btn) {
+  const td = btn.closest('td');
+  const input = td.querySelector('input[data-key="scan_date"]');
+  if (!input) return;
+  if (input.hasAttribute('readonly')) {
+    input.removeAttribute('readonly');
+    input.style.background = '#fff7e6';
+    input.style.color = '#ad6800';
+    input.style.borderColor = '#faad14';
+    input.focus();
+    input.select();
+    btn.textContent = '🔒';
+    btn.title = '点击锁定（保护录入日期不被误改）';
+  } else {
+    input.setAttribute('readonly', '');
+    input.style.background = '#fafafa';
+    input.style.color = '#555';
+    input.style.borderColor = '';
+    btn.textContent = '✏️';
+    btn.title = '解锁后即可手动修改此日期';
+  }
+}
+
+/* ── 路径选择对话框 ── */
+async function scanDir() {
+  if (!scanDirectory) {
+    // 无已保存目录时，弹出目录选择对话框
+    try {
+      const res = await fetch('/api/pick-directory', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ initial: '' })
+      });
+      const data = await res.json();
+      if (!data.path) return; // 用户取消
+      scanDirectory = data.path;
+    } catch (e) {
+      alert('选择目录失败: ' + e.message);
+      return;
+    }
+  }
+  const dir = scanDirectory;
+  const btn = document.getElementById('btnScan');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="loading"></span>扫描中...';
+  try {
+    const res = await fetch('/api/scan', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ directory: dir })
+    });
+    const result = await res.json();
+    if (result.error) { alert(result.error); return; }
+    tableData = result.data;
+    // 扫描后 tableData 是后端返回的 CSV 原序，重排一次保持表格/画廊同序
+    tableData.sort(compareRows);
+    renderTable();
+    showStatus(`扫描完成，共找到 ${result.count} 个视频`);
+    // 持久化保存扫描目录
+    saveScanDirectory(dir);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '扫描目录';
+  }
+}
+
+async function saveScanDirectory(dir) {
+  try {
+    await fetch('/api/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ scanDirectory: dir })
+    });
+  } catch (e) { console.error('保存扫描目录失败:', e); }
+}
+
+/* ── video view mode (table ↔ gallery) ── */
+// 'table' 或 'gallery' — 二者共用同一组工具栏 / 筛选 / 列显隐
+let videoViewMode = (() => { try { return localStorage.getItem('videoViewMode') || 'table'; } catch(e) { return 'table'; } })();
+
+function toggleVideoView() {
+  videoViewMode = videoViewMode === 'table' ? 'gallery' : 'table';
+  try { localStorage.setItem('videoViewMode', videoViewMode); } catch(e) {}
+  applyVideoViewMode();
+}
+
+function applyVideoViewMode() {
+  const tableWrap = document.getElementById('tableWrap');
+  const galleryWrap = document.getElementById('galleryWrap');
+  const toolbarBtn = document.getElementById('btnViewToggle');
+  if (!tableWrap || !galleryWrap) return;
+  if (videoViewMode === 'gallery') {
+    // 切到画廊：表格隐藏，画廊显示（用 class 切换，因 .hidden !important 会覆盖 inline style）
+    tableWrap.classList.add('hidden');
+    galleryWrap.classList.remove('hidden');
+    if (toolbarBtn) toolbarBtn.textContent = '📊 表格';
+    _galleryRender();
+  } else {
+    tableWrap.classList.remove('hidden');
+    galleryWrap.classList.add('hidden');
+    if (toolbarBtn) toolbarBtn.textContent = '📋 画廊';
+    renderTable();
+  }
+}
+
+</script>
+<script src="/static/js/render-table.js"></script>
+<script>
+
+/* ── collect ── */
+/* sync table input changes to tableData in real time via event delegation */
+/* per-row auto-save with debounce: each changed row is saved independently */
+let undoStack = [];
+let autoSaveTimer = null;
+const dirtyRows = new Set();  // track which rows have unsaved changes
+
+function updateManualSaveCounter() {
+  const el = document.getElementById('manualSaveDirtyCount');
+  const btn = document.getElementById('btnManualSave');
+  if (dirtyRows.size > 0) {
+    if (el) el.textContent = `(${dirtyRows.size})`;
+    if (btn) btn.classList.add('has-dirty');
+  } else {
+    if (el) el.textContent = '';
+    if (btn) btn.classList.remove('has-dirty');
+  }
+}
+
+function markRowDirty(idx) {
+  if (isNaN(idx) || idx < 0 || !tableData[idx]) return;
+  dirtyRows.add(idx);
+  updateManualSaveCounter();
+  _persistDirtyEdits();  // 写 localStorage 备份（即使刷新/崩溃也能恢复）
+  scheduleAutoSave();
+}
+
+// ── 脏数据持久化：刷新/崩溃后能恢复 ────────────────────────────────
+function _persistDirtyEdits() {
+  try {
+    if (dirtyRows.size === 0) {
+      localStorage.removeItem('dirtyEditsBackup');
+      return;
+    }
+    const rows = [...dirtyRows].map(i => tableData[i]).filter(Boolean);
+    if (rows.length === 0) {
+      localStorage.removeItem('dirtyEditsBackup');
+      return;
+    }
+    localStorage.setItem('dirtyEditsBackup', JSON.stringify({
+      ts: Date.now(),
+      rows: rows,
+    }));
+  } catch (e) { /* localStorage 满了或被禁，忽略 */ }
+}
+
+// 启动时检测是否有未保存的脏数据 → 自动恢复到 tableData 并标 dirty
+function _restoreDirtyEditsOnLoad() {
+  try {
+    const raw = localStorage.getItem('dirtyEditsBackup');
+    if (!raw) return;
+    const payload = JSON.parse(raw);
+    const rows = (payload && payload.rows) || [];
+    if (!Array.isArray(rows) || rows.length === 0) return;
+    let restored = 0;
+    let skipped = 0;
+    for (const r of rows) {
+      if (!r || !r.path) { skipped++; continue; }
+      const idx = tableData.findIndex(t => t.path === r.path);
+      if (idx < 0) { skipped++; continue; }
+      // 只覆盖 PG 里为空、但备份里有值的字段（保守策略：不覆盖已被服务端/其他人更新的非空字段）
+      for (const k of Object.keys(r)) {
+        if (k === 'path') continue;
+        const oldVal = (tableData[idx][k] || '').toString();
+        const newVal = (r[k] || '').toString();
+        if (newVal && !oldVal) {
+          tableData[idx][k] = newVal;
+        }
+      }
+      dirtyRows.add(idx);
+      restored++;
+    }
+    if (restored > 0) {
+      updateManualSaveCounter();
+      _persistDirtyEdits();  // 写回（去掉 skipped 的）
+      // 用 setTimeout 推到事件循环末，showStatus 一定能拿到 DOM
+      setTimeout(() => {
+        showStatus(`⚠️ 上次有 ${restored} 条未保存的编辑已恢复${skipped ? `（${skipped} 条已过期跳过）` : ''}，请点击 💾 保存提交`,
+                    'warn');
+      }, 200);
+    }
+  } catch (e) { /* ignore */ }
+}
+
+// 页面关闭/刷新前：尽力把脏数据 flush 到服务端（fire-and-forget）
+window.addEventListener('beforeunload', () => {
+  if (dirtyRows.size === 0) return;
+  const rows = [...dirtyRows].map(i => tableData[i]).filter(Boolean);
+  if (rows.length === 0) return;
+  const body = JSON.stringify({ rows });
+  // 优先 sendBeacon：浏览器保证在 unload 时把请求送出去
+  try {
+    if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
+      const blob = new Blob([body], { type: 'application/json' });
+      const ok = navigator.sendBeacon('/api/save-rows', blob);
+      if (ok) return;
+    }
+  } catch (e) {}
+  // 兜底：同步 XHR（fetch 在 unload 时不可靠）
+  try {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', '/api/save-rows', false);
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.send(body);
+  } catch (e) {}
+});
+
+function scheduleAutoSave() {
+  if (autoSaveTimer) clearTimeout(autoSaveTimer);
+  autoSaveTimer = setTimeout(() => {
+    autoSaveTimer = null;
+    saveDirtyRows();
+  }, 800);
+}
+
+async function saveDirtyRows(silent = false) {
+  if (dirtyRows.size === 0) { console.log('[saveDirtyRows] nothing to save'); return; }
+  const indices = [...dirtyRows];
+  console.log('[saveDirtyRows] saving indices=', indices);
+  dirtyRows.clear();
+  updateManualSaveCounter();
+  const rows = indices.map(i => {
+    const r = tableData[i];
+    return r ? { ...r } : null;
+  }).filter(Boolean);
+  console.log('[saveDirtyRows] rows to save=', rows.map(r => ({ path: r.path, env_id: r.env_id, recorder_id: r.recorder_id, task_id: r.task_id })));
+  if (rows.length === 0) return;
+  try {
+    const res = await fetch('/api/save-rows', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rows }),
+    });
+    const result = await res.json();
+    console.log('[saveDirtyRows] result=', result);
+    if (result.ok) {
+      for (const idx of indices) {
+        delete undoStack[idx];
+      }
+      // 保存成功 → 清掉 localStorage 备份
+      try { localStorage.removeItem('dirtyEditsBackup'); } catch(e) {}
+      // 跨视图同步：如果画廊浮层开着，刷新其编辑表单
+      _refreshGalleryEditorForm(indices);
+      if (!silent) {
+        showStatus(`✅ 已保存 ${rows.length} 行`);
+        // 保存按钮短暂高亮
+        const btn = document.getElementById('btnManualSave');
+        if (btn) {
+          btn.style.boxShadow = '0 0 8px rgba(82,196,26,0.6)';
+          setTimeout(() => { btn.style.boxShadow = ''; }, 1200);
+        }
+      }
+    } else {
+      console.error('[saveDirtyRows] auto-save failed:', result);
+      if (!silent) showStatus('⚠️ 自动保存失败，请重试');
+      indices.forEach(i => dirtyRows.add(i));  // re-mark on failure
+      updateManualSaveCounter();
+    }
+  } catch (e) {
+    console.error('Auto-save error:', e);
+    if (!silent) showStatus('⚠️ 自动保存异常: ' + e.message);
+    indices.forEach(i => dirtyRows.add(i));  // re-mark on failure
+    updateManualSaveCounter();
+  }
+}
+
+async function manualSave() {
+  // 先同步预览表单数据
+  if (typeof syncPreviewToData === 'function') syncPreviewToData();
+  if (dirtyRows.size > 0) {
+    if (autoSaveTimer) { clearTimeout(autoSaveTimer); autoSaveTimer = null; }
+    await saveDirtyRows();  // saveDirtyRows 内部已有状态提示
+  } else {
+    showStatus('没有需要保存的修改');
+  }
+}
+
+function bindTableInputSync() {
+  const wrap = document.getElementById('tableWrap');
+  // input 事件（每次键入）：实时写回 + 中文自动补全。绝不弹框。
+  wrap.addEventListener('input', e => {
+    const el = e.target;
+    if (!el.dataset.key) return;
+    const tr = el.closest('tr');
+    if (!tr) return;
+    const idx = parseInt(tr.dataset.index);
+    if (isNaN(idx) || !tableData[idx]) return;
+    handleCellEditLive(idx, el.dataset.key, el.value);
+    markRowDirty(idx);
+  });
+  // change 事件：
+  //   - INPUT：blur 后才问"应用到全部"（用户已写完、离开焦点）
+  //   - SELECT：change 即视为提交（无 input 事件兜底时同步数据）
+  wrap.addEventListener('change', e => {
+    const el = e.target;
+    if (!el.dataset.key) return;
+    const tr = el.closest('tr');
+    if (!tr) return;
+    const idx = parseInt(tr.dataset.index);
+    if (isNaN(idx) || !tableData[idx]) return;
+    if (el.tagName === 'INPUT') {
+      handleCellEditCommit(idx, el.dataset.key, el.value);
+    } else {
+      // SELECT
+      handleCellEditLive(idx, el.dataset.key, el.value);
+      markRowDirty(idx);
+    }
+  });
+
+  // 预览表单：同样区分实时 vs 提交
+  const previewForm = document.getElementById('previewForm');
+  if (previewForm) {
+    previewForm.addEventListener('input', e => {
+      const el = e.target;
+      if (!el.dataset.key) return;
+      if (previewIndex < 0 || !tableData[previewIndex]) return;
+      handleCellEditLive(previewIndex, el.dataset.key, el.value);
+      markRowDirty(previewIndex);
+    });
+    previewForm.addEventListener('change', e => {
+      const el = e.target;
+      if (!el.dataset.key) return;
+      if (previewIndex < 0 || !tableData[previewIndex]) return;
+      if (el.tagName === 'INPUT') {
+        handleCellEditCommit(previewIndex, el.dataset.key, el.value);
+      } else {
+        handleCellEditLive(previewIndex, el.dataset.key, el.value);
+        markRowDirty(previewIndex);
+      }
+    });
+  }
+}
+
+/* ── 中英自动补全（替代原 AI 翻译） ── */
+
+/**
+ * Select-dimension 列（recorder_id / device_id / task_id）改值时调用。
+ * 占位函数：当前不做额外补全，只保留接口避免 onchange 报错。
+ * 真正的"自动补全"逻辑（pickCanonicalEnglish）只在 work_content_cn 改动时触发。
+ */
+function dimMaybeAutoComplete(key, selectEl) {
+  // 当前版本：占位。新维度补全逻辑（如果以后需要）放这里。
+  return;
+}
+
+/**
+ * 根据中文值，从已有记录中挑选"标准英文"。
+ * 规则：
+ *   1) 只剩 1 条（含自身）→ 用这条
+ *   2) 共 2 条          → 用"另一条"（非 excludeIndex 那条）
+ *   3) > 2 条           → 出现次数最多的英文
+ *   4) 并列最多          → 随机挑一个 + Toast 提示用户加 -1/-2/-3 后缀
+ * excludeIndex: -1 表示不过滤（用于新记录场景）
+ */
+function pickCanonicalEnglish(cn, excludeIndex = -1) {
+  cn = (cn || '').trim();
+  if (!cn) return null;
+
+  const candidates = tableData
+    .map((r, i) => ({ r, i }))
+    .filter(({ r, i }) => (r.work_content_cn || '').trim() === cn && i !== excludeIndex);
+
+  // 0 其他记录：尝试用 excludeIndex 自己（rule 1）
+  if (candidates.length === 0) {
+    if (excludeIndex >= 0 && tableData[excludeIndex]) {
+      return (tableData[excludeIndex].work_content_en || '').trim() || null;
+    }
+    return null;
+  }
+
+  // 1 其他记录（count == 2，rule 2）：用"另一条"
+  if (candidates.length === 1) {
+    return (candidates[0].r.work_content_en || '').trim() || null;
+  }
+
+  // ≥2 其他记录：mode（rule 3 & 4）
+  const counts = {};
+  for (const { r } of candidates) {
+    const en = (r.work_content_en || '').trim();
+    if (!en) continue;
+    counts[en] = (counts[en] || 0) + 1;
+  }
+  const keys = Object.keys(counts);
+  if (keys.length === 0) return null;
+
+  const maxCount = Math.max(...keys.map(k => counts[k]));
+  const top = keys.filter(k => counts[k] === maxCount);
+  if (top.length === 1) return top[0];
+
+  // rule 4：并列最多 → 随机 + 提示
+  showToast(
+    `中文 <code>${cn}</code> 对应 ${top.length} 种并列最多的英文（${top.length > 3 ? top.slice(0, 3).join(' / ') + ' …' : top.join(' / ')}），` +
+    `建议在中文后加 <code>-1</code> <code>-2</code> <code>-3</code> 后缀以区分`,
+    'warn'
+  );
+  return top[Math.floor(Math.random() * top.length)];
+}
+
+/**
+ * 实时同步（每次键入 / SELECT 变化都跑）：
+ * 1) 写回 tableData + 记录 undo
+ * 2) 中文变更 → 触发英文自动补全
+ * 不弹任何框（避免用户还没写完就被打扰）
+ */
+function handleCellEditLive(rowIndex, key, newValue) {
+  if (!tableData[rowIndex]) return;
+  if (!undoStack[rowIndex]) undoStack[rowIndex] = {};
+  undoStack[rowIndex][key] = { old: tableData[rowIndex][key] };
+  tableData[rowIndex][key] = newValue;
+
+  if (key === 'work_content_cn') {
+    // 中文变更 → 触发自动补全
+    const canonical = pickCanonicalEnglish(newValue, rowIndex);
+    if (canonical) {
+      tableData[rowIndex].work_content_en = canonical;
+      // 编程设置 .value 不会触发 input 事件，不会回环
+      const enInput = document.querySelector(
+        `tr[data-index="${rowIndex}"] input[data-key="work_content_en"]`);
+      if (enInput) enInput.value = canonical;
+      const previewEn = document.querySelector(
+        `#previewForm input[data-key="work_content_en"]`);
+      if (previewEn && previewIndex === rowIndex) previewEn.value = canonical;
+    }
+  }
+}
+
+/**
+ * 提交时（文本框 blur / SELECT change）问询：
+ * 仅在英文字段上、且同中文记录 > 1 条时弹出"应用到全部"对话框。
+ */
+function handleCellEditCommit(rowIndex, key, newValue) {
+  if (!tableData[rowIndex]) return;
+  if (key !== 'work_content_en') return;  // 只在英文提交时问
+
+  const cn = (tableData[rowIndex].work_content_cn || '').trim();
+  if (!cn) return;
+  const sameCount = tableData.filter(
+    r => (r.work_content_cn || '').trim() === cn).length;
+  if (sameCount > 1) {
+    showApplyAllDialog(cn, sameCount, newValue, rowIndex);
+  }
+}
+
+/* ── "应用到全部" 对话框 ── */
+let _applyAllCtx = null;
+
+function showApplyAllDialog(cn, count, newValue, editedIndex) {
+  _applyAllCtx = { cn, count, newValue, editedIndex };
+  document.getElementById('applyAllCn').textContent     = cn;
+  document.getElementById('applyAllCount').textContent  = count;
+  document.getElementById('applyAllOther').textContent  = count - 1;
+  document.getElementById('applyAllDialog').classList.remove('hidden');
+}
+
+function closeApplyAllDialog() {
+  const d = document.getElementById('applyAllDialog');
+  if (d) d.classList.add('hidden');
+  _applyAllCtx = null;
+}
+
+function confirmApplyAll(applyAll) {
+  if (!_applyAllCtx) { closeApplyAllDialog(); return; }
+  const { cn, newValue, editedIndex } = _applyAllCtx;
+  if (applyAll) {
+    for (let i = 0; i < tableData.length; i++) {
+      const r = tableData[i];
+      if ((r.work_content_cn || '').trim() === cn) {
+        r.work_content_en = newValue;
+        markRowDirty(i);
+      }
+    }
+    renderTable();  // 整表重渲染以反映批量更新
+  }
+  // "仅此条"：tableData[editedIndex] 已被 handleCellEdit 写好，无需额外动作
+  closeApplyAllDialog();
+  markRowDirty(editedIndex);  // 无论"仅此条"还是"全部"，当前编辑行都要保存
+}
+
+/* ── Toast（平局提示等） ── */
+let _toastTimer = null;
+function showToast(msgHtml, kind = 'info') {
+  const t = document.getElementById('toast');
+  if (!t) return;
+  t.innerHTML = msgHtml;
+  t.className = `toast toast-${kind}`;
+  if (_toastTimer) clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => t.classList.add('hidden'), 8000);
+}
+
+function collectTableData() {
+  return tableData.map(row => ({ ...row }));
+}
+
+/* sync preview form values back into tableData */
+function syncPreviewToData() {
+  if (previewIndex < 0) return;
+  const form = document.getElementById('previewForm');
+  form.querySelectorAll('input, select, textarea').forEach(el => {
+    tableData[previewIndex][el.dataset.key] = el.value;
+  });
+}
+
+async function saveAll(silent = false) {
+  syncPreviewToData();
+  const data = collectTableData();
+  try {
+    const res = await fetch('/api/save', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(data)
+    });
+    const result = await res.json();
+    if (result.ok === true) {
+      tableData = data;
+      // 保存后 tableData 是 collectTableData() 返回的当前序，重排一次保持表格/画廊同序
+      tableData.sort(compareRows);
+      undoStack = [];
+      dirtyRows.clear();  // all saved, clear dirty tracking
+      updateManualSaveCounter();
+      if (!silent) {
+        renderTable();
+        showStatus('已保存到 CSV 文件 (' + result.count + '条)');
+      }
+    } else {
+      console.error('Save failed:', result);
+      if (!silent) alert('保存失败: ' + JSON.stringify(result));
+    }
+  } catch (e) { if (!silent) alert('保存失败: ' + e.message); }
+}
+
+</script>
+<script src="/static/js/preview-player.js"></script>
+<script>
+
+/* ── delete ── */
+function onCheckChange() {
+  const checked = document.querySelectorAll('.row-check:checked');
+  const btn = document.getElementById('btnDeleteSelected');
+  btn.style.display = checked.length > 0 ? '' : 'none';
+}
+
+function toggleSelectAll(cb) {
+  document.querySelectorAll('.row-check').forEach(chk => {
+    chk.checked = cb.checked;
+  });
+  onCheckChange();
+}
+
+async function deleteSingle(index) {
+  if (!confirm(`确定要删除第 ${index + 1} 条记录吗？（可恢复：CSV 会自动备份）`)) return;
+  await doDelete([index]);
+}
+
+async function deleteSelected() {
+  const checked = [...document.querySelectorAll('.row-check:checked')].map(cb => parseInt(cb.dataset.index));
+  if (!checked.length) { alert('请先勾选要删除的记录'); return; }
+  if (!confirm(`确定要删除选中的 ${checked.length} 条记录吗？（可恢复：CSV 会自动备份）`)) return;
+  await doDelete(checked);
+}
+
+async function doDelete(indices) {
+  try {
+    const res = await fetch('/api/delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ indices })
+    });
+    const data = await res.json();
+    if (data.error) { alert(data.error); return; }
+
+    // Remove from tableData
+    const indexSet = new Set(indices);
+    tableData = tableData.filter((_, i) => !indexSet.has(i));
+
+    // Close preview if deleted row was being previewed
+    if (indexSet.has(previewIndex)) closePlayer();
+
+    renderTable();
+    let msg = `已删除 ${data.deleted} 条记录 (剩余 ${data.remaining} 条)`;
+    if (data.cleaned_caches > 0) msg += `，清理了 ${data.cleaned_caches} 个预处理缓存`;
+    if (data.cleaned_thumbs > 0) msg += `，清理了 ${data.cleaned_thumbs} 个缩略图`;
+    showStatus(msg);
+  } catch (e) { alert('删除失败: ' + e.message); }
+}
+
+function toggleUploadMenu(e) {
+  if (e) e.stopPropagation();
+  const menu = document.getElementById('uploadMenu');
+  menu.classList.toggle('show');
+  if (menu.classList.contains('show')) {
+    setTimeout(() => document.addEventListener('click', closeUploadMenu), 0);
+  }
+}
+function closeUploadMenu(e) {
+  if (e && e.target) {
+    const dd = document.getElementById('uploadDropdown');
+    if (dd && dd.contains(e.target)) return;
+  }
+  document.getElementById('uploadMenu').classList.remove('show');
+  document.removeEventListener('click', closeUploadMenu);
+}
+
+function toggleCleanCacheMenu(e) {
+  if (e) e.stopPropagation();
+  const menu = document.getElementById('cleanCacheMenu');
+  menu.classList.toggle('show');
+  if (menu.classList.contains('show')) {
+    setTimeout(() => document.addEventListener('click', closeCleanCacheMenu), 0);
+  }
+}
+function closeCleanCacheMenu(e) {
+  if (e && e.target) {
+    const dd = document.getElementById('cleanCacheDropdown');
+    if (dd && dd.contains(e.target)) return; // click inside dropdown — keep open
+  }
+  // Force close (called directly or click outside)
+  const menu = document.getElementById('cleanCacheMenu');
+  if (menu) menu.classList.remove('show');
+  document.removeEventListener('click', closeCleanCacheMenu);
+}
+
+async function cleanOrphanCache() {
+  if (!confirm('确定要清理所有孤儿缓存吗？\n\n将删除 video_manager.csv 中不存在的视频对应的：\n- hmd_cache 预处理文件\n- thumbnails 缩略图文件')) return;
+  try {
+    const res = await fetch('/api/clean-orphan-cache', { method: 'POST' });
+    const data = await res.json();
+    if (data.error) { alert(data.error); return; }
+    let msg = `缓存清理完成：`;
+    if (data.cleaned_caches > 0) msg += ` ${data.cleaned_caches} 个预处理缓存`;
+    if (data.cleaned_thumbs > 0) msg += ` ${data.cleaned_thumbs} 个缩略图`;
+    if (data.cleaned_caches === 0 && data.cleaned_thumbs === 0) msg += ` 没有孤儿文件需要清理`;
+    else msg += ` 已删除`;
+    if (data.kept_thumbs !== undefined) msg += `（保留了 ${data.kept_thumbs} 个缩略图）`;
+    showStatus(msg);
+  } catch (e) { alert('清理失败: ' + e.message); }
+}
+
+async function cleanUploadedCache() {
+  closeCleanCacheMenu();
+  try {
+    showStatus('正在扫描已上传视频的可清理文件…');
+    const previewRes = await fetch('/api/clean-uploaded-cache', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode: 'preview' }),
+    });
+    const data = await previewRes.json();
+    if (data.error) { alert('扫描失败: ' + data.error); return; }
+
+    if (data.total_videos === 0) {
+      alert('没有已上传的视频，无需清理。');
+      showStatus('扫描完成：没有可清理的文件');
+      return;
+    }
+
+    // Build summary
+    const s = data.summary;
+    let summaryHtml = '<table style="width:100%;border-collapse:collapse;font-size:13px;">';
+    summaryHtml += '<tr><td style="padding:4px 8px;font-weight:600;">类别</td><td style="padding:4px 8px;font-weight:600;">数量</td><td style="padding:4px 8px;font-weight:600;">大小(MB)</td></tr>';
+    const addRow = (label, count, size) => {
+      if (count > 0 || size > 0) {
+        summaryHtml += `<tr><td style="padding:3px 8px;">${label}</td><td style="padding:3px 8px;">${count}</td><td style="padding:3px 8px;">${size}</td></tr>`;
+      }
+    };
+    addRow('📹 源文件(MP4/HMD)', s.source_count, s.source_size_mb);
+    addRow('🎬 预览mp4', s.preview_mp4_count, s.preview_mp4_size_mb);
+    addRow('📼 预览h265', s.preview_h265_count, s.preview_h265_size_mb);
+    addRow('🖼️ 预览帧', s.preview_frames_file_count, s.preview_frames_size_mb);
+    if (s.preprocess_status_count > 0) addRow('📄 预处理状态文件', s.preprocess_status_count, 0);
+    summaryHtml += `<tr style="font-weight:700;border-top:2px solid #d9d9d9;"><td style="padding:4px 8px;">合计</td><td style="padding:4px 8px;">${data.total_videos} 个视频</td><td style="padding:4px 8px;">${s.total_size_mb}</td></tr>`;
+    summaryHtml += '</table>';
+    document.getElementById('cleanCacheSummary').innerHTML = summaryHtml;
+
+    // Build detail list
+    let detailHtml = '';
+    data.videos.forEach((v, vi) => {
+      const fname = (v.display_path || '').split(/[\\/]/).pop() || v.display_path;
+      detailHtml += `<div style="margin-bottom:8px;padding:6px;border:1px solid #e8e8e8;border-radius:4px;background:#fafafa;">`;
+      detailHtml += `<div style="font-weight:600;color:#333;margin-bottom:3px;">#${vi + 1} CSV行${v.csv_index + 1} — ${esc(fname)} <span style="color:#888;font-weight:400;">(${v.file_type.toUpperCase()}, ${v.total_size_mb} MB)</span></div>`;
+      detailHtml += `<div style="color:#666;">路径: ${esc(v.display_path)}</div>`;
+      detailHtml += `<ul style="margin:4px 0 0 16px;padding:0;">`;
+      v.items.forEach(item => {
+        const existMark = item.exists === false ? ' <span style="color:#cf1322;">(已不存在)</span>' : '';
+        let sizeStr = '';
+        if (item.file_count !== undefined) {
+          sizeStr = ` — ${item.file_count} 帧, ${item.size_mb} MB`;
+        } else if (item.size_mb > 0) {
+          sizeStr = ` — ${item.size_mb} MB`;
+        }
+        detailHtml += `<li style="margin:2px 0;">${item.category}: <code style="font-size:11px;">${esc(item.path)}</code>${sizeStr}${existMark}</li>`;
+      });
+      detailHtml += `</ul></div>`;
+    });
+    document.getElementById('cleanCacheDetail').innerHTML = detailHtml;
+
+    // Show modal
+    document.getElementById('cleanCachePreviewDialog').classList.remove('hidden');
+    showStatus(`扫描完成：${data.total_videos} 个已上传视频，共 ${s.total_size_mb} MB 可清理`);
+  } catch (e) { alert('扫描失败: ' + e.message); }
+}
+
+function closeCleanCachePreview() {
+  document.getElementById('cleanCachePreviewDialog').classList.add('hidden');
+}
+
+async function executeCleanUploadedCache() {
+  const btn = document.getElementById('btnConfirmCleanCache');
+  btn.disabled = true;
+  btn.textContent = '删除中…';
+  try {
+    showStatus('正在清除已上传视频源文件…');
+    const res = await fetch('/api/clean-uploaded-cache', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode: 'execute' }),
+    });
+    const data = await res.json();
+    closeCleanCachePreview();
+    if (data.error) { alert('删除失败: ' + data.error); return; }
+    let msg = '已上传视频清理完成：\n';
+    if (data.deleted_count > 0) {
+      msg += data.deleted_count + ' 个视频已清理';
+      if (data.total_freed_mb > 0) msg += '，释放 ' + data.total_freed_mb + ' MB';
+    } else {
+      msg += '没有可清理的文件（可能已经清理过）';
+    }
+    if (data.errors && data.errors.length > 0) {
+      msg += '\n' + data.errors.length + ' 个文件清理失败：\n' + data.errors.slice(0, 5).join('\n');
+    }
+    alert(msg);
+    showStatus('清理完成：' + data.deleted_count + ' 个视频，释放 ' + data.total_freed_mb + ' MB');
+  } catch (e) { alert('删除失败: ' + e.message); }
+  finally {
+    btn.disabled = false;
+    btn.textContent = '确认删除';
+  }
+}
+
+// ---- 预处理进度面板 ----
+</script>
+<script src="/static/js/hmd-progress.js"></script>
+<script>
+async function openPreprocessConfirm() {
+  // 1. 获取概览，筛选待处理视频（仅本机本地 + 未上传 + 未预处理）
+  const res = await fetch('/api/preprocess-overview');
+  const data = await res.json();
+  const items = data.items || [];
+
+  // 严格过滤
+  const candidates = items.filter(it => {
+    if (it.uploaded === 'Yes') return false;
+    if ((it.location_status || '') !== 'thisPC_local') return false;
+    const p = (it.path || '').replace(/\\/g, '/');
+    if (!p.startsWith('/media/videos/')) return false;
+    // 真正需要预处理的：缩略图 pending / 帧 pending 或 error / HMD 预处理 pending
+    return (it.thumb === 'pending' || it.hmd_preprocess === 'pending' ||
+            it.frames === 'pending' || it.frames === 'error');
+  });
+
+  // 检查是否已有任务在跑
+  let running = null;
+  try {
+    const r = await fetch('/api/hmd/is-processing');
+    const s = await r.json();
+    if (s.is_processing) running = s;
+  } catch (e) {}
+
+  // 填充弹窗
+  const infoEl = document.getElementById('preprocessConfirmInfo');
+  const listEl = document.getElementById('preprocessConfirmList');
+  const startBtn = document.getElementById('btnPreprocessConfirmStart');
+
+  if (running && running.fast && running.fast.active_folder) {
+    infoEl.innerHTML = `<b style="color:#fa8c16;">⏳ 正在处理中</b>：${running.fast.active_folder.split(/[\\/]/).pop()}` +
+      (running.fast.queue_len > 0 ? `，还有 ${running.fast.queue_len} 个排队` : '');
+  } else if (candidates.length === 0) {
+    infoEl.innerHTML = '<b style="color:#52c41a;">✅ 全部预处理已完成</b>，无需处理';
+  } else {
+    infoEl.innerHTML = `共 <b style="color:#1677ff;">${candidates.length}</b> 个待处理视频，预计 ${Math.ceil(candidates.length * 4 / 60)} 小时`;
+  }
+
+  listEl.innerHTML = candidates.length > 0
+    ? candidates.map((it, i) => {
+        const bn = it.path.split(/[\\/]/).pop();
+        const status = [];
+        if (it.thumb === 'pending') status.push('缩略图');
+        if (it.hmd_preprocess === 'pending' && it.file_type === 'hmd') status.push('HMD→MP4');
+        if (it.frames === 'pending' || it.frames === 'error') status.push('预览帧');
+        const device = bn.split('_')[1] || '';
+        return `<div style="padding:4px 6px;border-bottom:1px solid #eee;display:flex;gap:8px;">
+          <span style="color:#888;min-width:30px;">${i+1}.</span>
+          <span style="flex:1;font-family:monospace;">${bn}</span>
+          <span style="color:#666;font-size:11px;">[${device}]</span>
+          <span style="color:#1677ff;">待处理：${status.join(' + ')}</span>
+        </div>`;
+      }).join('')
+    : '<div style="padding:20px;text-align:center;color:#999;">无</div>';
+
+  startBtn.disabled = candidates.length === 0 || (running && running.fast && running.fast.active_folder);
+  startBtn.textContent = candidates.length > 0
+    ? `开始处理 ${candidates.length} 个`
+    : '无需处理';
+
+  // 暂存待处理列表
+  openPreprocessConfirm._candidates = candidates;
+  document.getElementById('preprocessConfirmDialog').classList.remove('hidden');
+  toggleProgressPanel();
+}
+
+function closePreprocessConfirm() {
+  document.getElementById('preprocessConfirmDialog').classList.add('hidden');
+}
+
+async function confirmAndStartPreprocess() {
+  const candidates = openPreprocessConfirm._candidates || [];
+  if (candidates.length === 0) {
+    showStatus('没有需要处理的视频');
+    closePreprocessConfirm();
+    return;
+  }
+
+  // 显示"开始处理"状态
+  const startBtn = document.getElementById('btnPreprocessConfirmStart');
+  startBtn.disabled = true;
+  startBtn.textContent = '正在启动...';
+
+  // 启动 3 个后端任务（缩略图 / 帧 / HMD 预处理）
+  try {
+    const thumbPaths = candidates.filter(it => it.thumb === 'pending').map(it => it.path);
+    if (thumbPaths.length > 0) {
+      await fetch('/api/thumbnail/warm', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({paths: thumbPaths}) });
+    }
+    const framePaths = candidates.filter(it => it.frames === 'pending' || it.frames === 'error').map(it => it.path);
+    if (framePaths.length > 0) {
+      await fetch('/api/frames/warm', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({paths: framePaths}) });
+    }
+    const hmdFolders = candidates.filter(it => it.hmd_preprocess === 'pending').map(it => it.path);
+    if (hmdFolders.length > 0) {
+      await fetch('/api/hmd/process-batch', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({folders: hmdFolders}) });
+    }
+    showStatus(`✅ 已启动 ${candidates.length} 个视频的预处理（后台运行中）`);
+    closePreprocessConfirm();
+    refreshProgress();
+  } catch (e) {
+    showStatus('启动预处理失败：' + e.message);
+    startBtn.disabled = false;
+    startBtn.textContent = '重试';
+  }
+}
+
+// Ctrl+S to save, Ctrl+Z to undo
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+    e.preventDefault();
+    saveAll();
+  }
+  // Ctrl+Z undo
+  if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+    const tag = document.activeElement?.tagName;
+    const isEditing = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+    if (isEditing) {
+      // Try to undo the current field
+      const el = document.activeElement;
+      if (el.dataset.key) {
+        const tr = el.closest('tr');
+        const idx = tr ? parseInt(tr.dataset.index) : -1;
+        if (idx >= 0 && undoStack[idx] && undoStack[idx][el.dataset.key]) {
+          e.preventDefault();
+          el.value = undoStack[idx][el.dataset.key].old;
+          tableData[idx][el.dataset.key] = el.value;
+          delete undoStack[idx][el.dataset.key];
+          markRowDirty(idx);
+        }
+      }
+    }
+  }
+  if (e.key === 'Escape') closePlayer();
+  const tag = document.activeElement?.tagName;
+  const isEditing = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+  if (e.key === 'ArrowLeft' && previewIndex >= 0 && !isEditing) { e.preventDefault(); navPreview(-1); }
+  if (e.key === 'ArrowRight' && previewIndex >= 0 && !isEditing) { e.preventDefault(); navPreview(1); }
+});
+
+</script>
+<script src="/static/js/export-upload-dialogs.js"></script>
+<script src="/static/js/hmd-inline-player.js"></script>
+<script src="/static/js/upload-options-cache.js"></script>
+<script>
+/* ============================================================ */
+/* === NAV TABS + PAGE SWITCHING                              === */
+/* ============================================================ */
+const PAGE_IDS = ['videos', 'recorders', 'sd_cards', 'tasks', 'environments', 'statistics', 'settings'];
+const dimPageState = {
+  recorders:   { schema: [], rows: [], dirty: new Set(), newKeys: new Set(), filter: '' },
+  sd_cards:     { schema: [], rows: [], dirty: new Set(), newKeys: new Set(), filter: '' },
+  tasks:        { schema: [], rows: [], dirty: new Set(), newKeys: new Set(), filter: '' },
+  environments: { schema: [], rows: [], dirty: new Set(), newKeys: new Set(), filter: '' },
+};
+
+function switchPage(name) {
+  if (!PAGE_IDS.includes(name)) name = 'videos';
+  document.querySelectorAll('.nav-tabs .tab').forEach(btn => {
+    btn.classList.toggle('on', btn.dataset.page === name);
+  });
+  document.querySelectorAll('.page-panel').forEach(panel => {
+    panel.hidden = (panel.dataset.page !== name);
+  });
+  try { localStorage.setItem('lastTab', name); } catch (e) {}
+  // Lazy-load first time — tasks page must load upload opts BEFORE rendering
+  // to ensure scene dropdown and business_type/business_name editable options are available.
+  if (name === 'tasks') {
+    loadUploadOpts().then(() => {
+      if (dimPageState.tasks.schema.length === 0) {
+        dimReload(name);
+      } else {
+        dimRenderTable(name);
+      }
+    });
+  } else if (['recorders', 'sd_cards', 'environments'].includes(name) && dimPageState[name].schema.length === 0) {
+    dimReload(name);
+  }
+  if (name === 'gallery' && !galleryState.loaded) {
+    galleryLoad();
+  }
+  // gallery tab 已被移除 — 现在在 videos 页内通过 toggleVideoView 切换
+}
+
+// Restore last tab after loadConfig (called via window.onload)
+const _origOnload = window.onload;
+window.onload = async () => {
+  if (typeof _origOnload === 'function') await _origOnload();
+  await loadUploadOpts();
+  await loadDimCache();
+  await loadEstimateRatio();
+  // loadData() may have rendered the table before dimCache was populated;
+  // re-render now so the select-dimension columns show all options.
+  try { renderTable(); } catch (e) { /* table not yet built */ }
+  let last = 'videos';
+  try { last = localStorage.getItem('lastTab') || 'videos'; } catch (e) {}
+  if (PAGE_IDS.includes(last)) switchPage(last);
+  // ── 恢复画廊详情页状态（刷新后自动回到之前打开的详情页）──
+  _restoreGalleryDetail();
+  // ── 初始化预处理状态跟踪 ──
+  try {
+    await fetch('/api/preprocess-overview/enable-tracking', { method: 'POST' });
+  } catch (e) { /* ignore */ }
+  // 加载预处理状态并刷新按钮（含预览按钮的灰色/可用切换）
+  try {
+    await refreshProgress();
+    renderTable();
+  } catch (e) { /* ignore */ }
+  // 同步自动排序按钮状态
+  _updateAutoSortBtn();
+};
+
+// 时长粗算：size_mb_per_min（HMD 行展示「(估 M:SS)」用）
+let estimateRatioMbPerMin = 4.0;
+let estimateRatioSource = 'default';
+async function loadEstimateRatio() {
+  try {
+    const r = await fetch('/api/estimate');
+    if (!r.ok) return;
+    const data = await r.json();
+    if (typeof data.size_mb_per_min === 'number') estimateRatioMbPerMin = data.size_mb_per_min;
+    estimateRatioSource = data.source || 'default';
+  } catch (e) { /* keep default */ }
+}
+
+async function loadDimCache() {
+  // 从 colConfig 收集所有 select-dimension:<name> 引用
+  const refs = new Set();
+  (colConfig || []).forEach(c => {
+    if (c.type && c.type.startsWith('select-dimension:')) refs.add(c.type.split(':')[1]);
+  });
+  // 总预热 tasks / recorders / sd_cards / environments 给维表页用
+  ['recorders', 'sd_cards', 'tasks', 'environments'].forEach(n => refs.add(n));
+  for (const name of refs) {
+    try {
+      const r = await fetch('/api/dim/' + name);
+      if (r.ok) {
+        const data = await r.json();
+        dimCache[name] = data.rows || [];
+      }
+    } catch (e) {
+      console.warn('[dimCache]', name, e);
+    }
+  }
+}
+
+/* ============================================================ */
+/* === DIM TABLE CRUD                                         === */
+/* ============================================================ */
+const _DIM_FIELDS = {
+  recorders: {
+    name: { type: 'text', placeholder: '姓名 / 显示标签' },
+    // 操作员职业：与上传页面对齐（235 项，可搜索）
+    operator_job: { type: 'select', required: true, options: [
+      '',
+      '收银员',
+      '零售店员',
+      '快餐员工',
+      '服务员',
+      '厨师',
+      '主厨',
+      '咖啡师',
+      '调酒师',
+      '洗碗工',
+      '备菜员',
+      '迎宾员',
+      '餐厅经理',
+      '餐饮服务员',
+      '面包师',
+      '糕点师',
+      '屠夫',
+      '食品加工员',
+      '配送司机',
+      '货车司机',
+      '快递员',
+      '公交司机',
+      '出租车 / 网约车司机',
+      '叉车司机',
+      '仓库员工',
+      '拣货 / 打包员',
+      '理货员',
+      '发货员',
+      '收货员',
+      '库存专员',
+      '物流协调员',
+      '供应链员工',
+      '分拣员',
+      '邮递员',
+      '邮政营业员',
+      '搬运工',
+      '装卸工',
+      '保洁员',
+      '清洁工',
+      '家政员',
+      '酒店客房服务员',
+      '洗衣工',
+      '干洗工',
+      '场地养护员',
+      '园林工',
+      '园丁',
+      '苗圃工',
+      '有害生物防治员',
+      '维修工',
+      '楼宇管理员',
+      '设施技术员',
+      '水处理操作员',
+      '保安',
+      '警察',
+      '消防员',
+      '急救员',
+      '急救医士',
+      '交通协管员',
+      '救生员',
+      '注册护士',
+      '护理员',
+      '居家护理员',
+      '生活护理员',
+      '护工',
+      '医疗助理',
+      '医生',
+      '医师助理',
+      '执业护师',
+      '药剂师',
+      '药房技术员',
+      '牙医',
+      '口腔卫生士',
+      '牙科助理',
+      '理疗师',
+      '作业治疗师',
+      '呼吸治疗师',
+      '放射技师',
+      '化验员',
+      '兽医技术员',
+      '兽医',
+      '托育员',
+      '幼儿教师',
+      '小学教师',
+      '初中教师',
+      '高中教师',
+      '助教',
+      '家教',
+      '教授',
+      '教练',
+      '学校辅导员',
+      '图书管理员',
+      '社工',
+      '心理咨询师',
+      '行政助理',
+      '文员',
+      '前台',
+      '秘书',
+      '行政秘书',
+      '数据录入员',
+      '记账员',
+      '会计',
+      '薪资专员',
+      '开票员',
+      '人力资源专员',
+      '招聘专员',
+      '客服代表',
+      '呼叫中心员工',
+      '销售代表',
+      '客户经理',
+      '房产经纪',
+      '保险代理人',
+      '银行柜员',
+      '信贷员',
+      '理财顾问',
+      '市场专员',
+      '平面设计师',
+      '摄影师',
+      '摄像师',
+      '记者',
+      '撰稿 / 编辑',
+      '律师',
+      '律师助理',
+      '法务助理',
+      '软件工程师',
+      '网页开发工程师',
+      '数据分析师',
+      '数据科学家',
+      'IT 支持专员',
+      '系统管理员',
+      '网络技术员',
+      '网络安全分析师',
+      '产品经理',
+      '用户体验设计师',
+      '测试工程师',
+      '电工',
+      '水管工',
+      '木工',
+      '木匠',
+      '油漆工',
+      '建筑工',
+      '屋顶工',
+      '石膏板安装工',
+      '地板安装工',
+      '贴砖工',
+      '泥瓦工',
+      '混凝土工',
+      '重型设备操作员',
+      '起重机操作员',
+      '工程经理',
+      '暖通空调技术员',
+      '家电维修技术员',
+      '机修工',
+      '汽车技师',
+      '摩托车维修工',
+      '自行车维修工',
+      '船舶维修工',
+      '柴油机维修工',
+      '钣金喷漆技师',
+      '轮胎技师',
+      '汽车美容师',
+      '焊工',
+      '金属制作工',
+      '机床工',
+      '数控操作员',
+      '工厂工人',
+      '生产工人',
+      '机器操作员',
+      '装配工',
+      '质检员',
+      '包装工',
+      '半导体技术员',
+      '电子技术员',
+      '手机维修技术员',
+      '电脑维修技术员',
+      '现场服务技术员',
+      '印刷机操作员',
+      '招牌制作工',
+      '裁缝',
+      '修鞋匠',
+      '软包工',
+      '皮革工匠',
+      '发型师',
+      '理发师',
+      '美甲师',
+      '美容师',
+      '按摩师',
+      '花艺师',
+      '珠宝匠',
+      '钟表匠',
+      '装裱师',
+      '蛋糕裱花师',
+      '咖啡烘焙师',
+      '陶艺师',
+      '蜡烛工匠',
+      '健身教练',
+      '私人教练',
+      '房屋粉刷工',
+      '杂工',
+      '安装工',
+      '太阳能板安装工',
+      '风电机组技术员',
+      '农民',
+      '农场工人',
+      '牧场工人',
+      '动物饲养员',
+      '宠物美容师',
+      '渔民',
+      '鱼贩',
+      '林业工人',
+      '伐木工',
+      '矿工',
+      '油气田工人',
+      '实验室研究员',
+      '牙科技师',
+      '科学家',
+      '工程师',
+      '建筑师',
+      '测量员',
+      '飞行员',
+      '空乘',
+      '机场地勤',
+      '旅行社顾问',
+      '酒店前台',
+      '加油站员工',
+      '活动工作人员',
+      '赌场员工',
+      '殡葬服务员',
+      '学校行政人员',
+      '供应链协调员',
+      '物流经理',
+      '维修技术员',
+      '仪器维修技术员',
+      '造纸厂工人',
+      '锁匠',
+      '军人',
+      '银行职员',
+    ] },
+    // 操作员同意：与上传页面对齐
+    operator_consent: { type: 'select', required: true, options: ['', '是', '否'] },
+    age_range: { type: 'select', required: true, options: ['', '15–20', '20–25', '25–30', '30–35', '35–40', '40–45', '45–50', '50–55', '55–60', '60–65', '65–70', '70+'] },
+    // 性别：与上传页面对齐
+    gender: { type: 'select', required: true, options: ['', '男', '女', '不愿透露'] },
+    // 惯用手：与上传页面对齐
+    handedness: { type: 'select', required: true, options: ['', '右手', '左手', '双手皆可'] },
+    // 手套：与上传页面对齐
+    gloves: { type: 'select', required: true, options: ['', '否 —— 徒手', '是 —— 戴手套'] },
+    // 劳动力类型：与上传页面对齐
+    workforce_type: { type: 'select', required: true, options: ['', '真实员工(本职工作)', '承包者(为接入雇佣)'] },
+    role_experience: { type: 'text', placeholder: '岗位经验（如 2 years）' },
+    task_experience: { type: 'text', placeholder: '工序经验' },
+    collection_hours_today: { type: 'text', placeholder: '当日接入时长(h)' },
+    collection_experience_days: { type: 'text', placeholder: '累计接入天数' },
+    hand_size_cm: { type: 'text', placeholder: '手尺寸(cm)' },
+    notes: { type: 'text', placeholder: '备注（可选）' },
+  },
+  sd_cards: {
+    volume_label:  { type: 'text', placeholder: '卷标' },
+    device_id:     { type: 'text', required: true, placeholder: '设备编号（如 DX-0001）' },
+    device_name:   { type: 'text', placeholder: '设备名称' },
+    // 接入模式：与上传页面对齐，前端只显示中文、保存也存中文
+    capture_mode:  { type: 'select', required: true, options: ['', '单目', '双目', '三目'] },
+    country_code:  { type: 'text', required: true, placeholder: '国家代码（如 CN）' },
+    region:        { type: 'text', required: true, placeholder: '省/州/地区（如 示例省）' },
+    city:          { type: 'text', required: true, placeholder: '城市' },
+    notes:         { type: 'text', placeholder: '备注' },
+  },
+  tasks: {
+    product:       { type: 'text',   placeholder: '产品' },
+    task:          { type: 'text',   placeholder: '任务' },
+    tool:          { type: 'text',   placeholder: '工具' },
+    process:       { type: 'text',   required: true, placeholder: '工序' },
+    process_en:    { type: 'text',   placeholder: '工序（英文·自动翻译）' },
+    // 任务难度：与上传页面对齐
+    difficulty:    { type: 'select', required: true, options: ['', '简单', '中等', '困难'] },
+    business_type: { type: 'select-editable', required: true, placeholder: '业务类型', optionField: 'business_type' },
+    business_name: { type: 'select-editable', required: true, placeholder: '业务名称', optionField: 'business_name' },
+    notes:         { type: 'text',   placeholder: '备注' },
+  },
+  environments: {
+    scene:         { type: 'select', required: true, optionsFromUpload: 'scenes', searchable: true },
+    // 详细地址：默认值与上传页面对齐，使用中文
+    location_address: { type: 'text', required: true, placeholder: '南安市辉煌工业园区' },
+    // 环境大类：与上传页面对齐（24 项）
+    environment:   { type: 'select', required: true, options: [
+      '',
+      '零售与消费品',
+      '时尚服饰',
+      '维修服务',
+      '餐饮',
+      '建筑与五金',
+      '食品加工',
+      '印刷与设计',
+      '工厂',
+      '酒店服务',
+      '汽车与运输',
+      '运动与休闲',
+      '创意工坊',
+      '教育与培训',
+      '工业制造',
+      '能源与公用事业',
+      '医疗与药房',
+      '清洁与环卫',
+      '实验室 / 科研',
+      '托育与护理',
+      '公共安全与应急',
+      '农业与种植',
+      '美容与个护',
+      '娱乐与活动',
+      '其他',
+    ] },
+    environment_description: { type: 'text', placeholder: '环境描述（照明/场景）', title: '照明 (Lighting): 特指光源的类型、强度和分布。\n场景 (Scene/Setting): 指具体的地点或情境，或者场景职能。' },
+    environment_description_en: { type: 'text', placeholder: '环境描述（英文·自动翻译）' },
+    // 设施类型：与上传页面对齐（257 项）
+    facility_venue: { type: 'select', required: true, options: [
+      '',
+      '家',
+      '包装食品店',
+      '餐厅',
+      '花店',
+      '农场',
+      '服装店',
+      '礼品店',
+      '香水店',
+      '面包房',
+      '糕点店',
+      '杂货店',
+      '缝纫厂',
+      '洗衣店',
+      '修鞋店',
+      '木工坊',
+      '园艺中心',
+      '五金店',
+      '渔具店',
+      '摩托车修理店',
+      '蛋糕店',
+      '珠宝手工',
+      '图书馆',
+      '电子维修',
+      '印刷店',
+      '咖啡店',
+      '酒店',
+      '家具店',
+      '改衣店',
+      '宠物店',
+      '履单中心',
+      '药房',
+      '皮具店',
+      '金属加工',
+      '摩托车精洗',
+      '贴膜店',
+      '文具店',
+      '蜡烛工作室',
+      '家具翻新',
+      '美妆用品店',
+      '包装厂',
+      '玩具店',
+      '汽车修理店',
+      '家电店',
+      '建筑公司',
+      '装裱店',
+      '清洁用品店',
+      '电子产品店',
+      '茶叶生产',
+      '健身房',
+      '手工作坊',
+      '酒吧',
+      '钟表店',
+      '坚果加工厂',
+      '咖啡生产',
+      '书店',
+      '家电维修',
+      '水生产',
+      '冰淇淋店',
+      '汽车精洗',
+      '婚纱工作室',
+      '手机维修',
+      '乐器维修',
+      '自行车维修',
+      '办公室',
+      '制鞋厂',
+      '服装印花',
+      '地毯店',
+      '标牌店',
+      '塑料袋厂',
+      '电脑维修',
+      '回收中心',
+      '披萨店',
+      '干果厂',
+      '外卖店',
+      '管道公司',
+      '玩具厂',
+      '足球场',
+      '水疗中心',
+      '造纸厂',
+      '羽毛球店',
+      '物流中心',
+      '线缆厂',
+      '马赛克工坊',
+      '商用厨房',
+      '碾米厂',
+      '油漆店',
+      '民宿',
+      '电工',
+      '义齿技师',
+      '皮带厂',
+      '电子厂',
+      '诊所',
+      '五金厂',
+      '拳击馆',
+      '烹饪学校',
+      '制造厂',
+      '纺织软品制造',
+      '鱼市',
+      '鸡肉店',
+      '百货配送',
+      '理发店',
+      '美甲店',
+      '运输',
+      '保健品店',
+      '陶艺工作室',
+      '湿实验室',
+      '自行车精洗',
+      '机电车间',
+      '洗车店',
+      '物流履单中心',
+      '奶酪厂',
+      '塑料厂',
+      '柔性电路板制造',
+      '枕头厂',
+      '果蔬店',
+      '塑料橡胶泡沫制品制造',
+      '肉铺',
+      '锁匠',
+      '加油站',
+      '船舶维修',
+      '装修公司',
+      '厨房',
+      '个人护理',
+      '体育用品店',
+      '金属加工车间',
+      '篮球场',
+      '建筑工地',
+      '车库',
+      '镶嵌工艺',
+      '回收区',
+      '回收工作区',
+      '阳台',
+      '药房实验室',
+      '洗衣房',
+      '街头摊贩',
+      '手工房/工作台',
+      '零售店',
+      '手工工位',
+      '屏幕再造',
+      '后院',
+      '厨房作坊',
+      '食品脱水作坊',
+      '其他',
+      '办公工作区',
+      '回收作坊',
+      '鸡蛋加工厂',
+      '超市',
+      '手工房',
+      '家庭洗衣区',
+      '杂乱房间',
+      '台球',
+      '市场',
+      '室内杂乱工作区',
+      '烘焙店',
+      '烘焙厨房',
+      '杂乱室内工作区',
+      '五金制造',
+      '家庭工作区',
+      '药房储藏室',
+      '清洁服务',
+      '图书馆工作区',
+      '家庭厨房',
+      '机械车间',
+      '回收分拣区',
+      '垃圾分拣区',
+      '药房配药区',
+      '餐厅',
+      '备餐区',
+      '客厅/桌',
+      '市场摊位',
+      '宠物店',
+      '手机配件店',
+      '修鞋摊 01',
+      '烘焙区',
+      '温室',
+      '药房配制实验室',
+      '苗圃',
+      '储藏室',
+      '手工工作室',
+      '洗衣房 01',
+      '图书室',
+      '户外维修站',
+      '户外垃圾分拣',
+      '文具店',
+      '浴室',
+      '花园清理',
+      '家庭包装工位',
+      '厨房备菜区',
+      '图书馆档案室',
+      '图书馆书架',
+      '任意房间',
+      '家庭作坊',
+      '家庭书房',
+      '家庭工坊',
+      '室内工作区',
+      '厨房餐具整理',
+      '金属加工车间',
+      '户外垃圾分拣区',
+      '书店储藏室',
+      '化学实验室',
+      '椰子加工',
+      '书桌/工作台',
+      '电子作坊',
+      '小吃摊',
+      '酒店客房',
+      '实验室工作区',
+      '洗衣打包工位',
+      '洗衣房/卧室',
+      '皮具作坊',
+      '图书馆储藏',
+      '金属五金建材制造',
+      '蘑菇农场',
+      '药房工作区',
+      '餐厅内部',
+      '木工作坊',
+      '卧室/衣橱/后院',
+      '卧室/洗衣房',
+      '鸡蛋店',
+      '家',
+      '厨房烘焙',
+      '洗衣区',
+      '临时厨房水槽',
+      '药房储藏',
+      '钟表维修站',
+      '便利店',
+      '电子维修作坊',
+      '小店',
+      '台球厅',
+      '咖啡吧台',
+      '咖啡厨房',
+      '化学实验室',
+      '便利店储藏',
+      '手工房',
+      '电子维修台',
+      '电子维修站',
+      '备餐区',
+      '水果店',
+      '花园/阳台',
+      '花园/阳台/室内',
+      '家庭办公室',
+      '家庭打包区',
+      '家庭书房',
+      '室内住宅',
+      '室内客厅',
+      '室内起居空间',
+      '厨房/浴室/走廊',
+      '厨房/杂物间',
+      '图书馆储藏室',
+      '药房配制工位',
+      '药房柜台',
+      '药房实验室',
+      '药房配药室',
+      '手机维修店',
+      '回收场',
+      '电动车维修店',
+      '小型零售店',
+      '桌子',
+    ] },
+    notes:         { type: 'text',   placeholder: '备注' },
+  }
+};
+
+// UI-only 字段屏蔽：schema / CSV 保持原样（保留历史 env 数据），但这些列不在 task 表单里渲染。
+// 迁移记录: 2db9001 已把 scene/env 从 task_id 公式、生成向导、说明文案里清理，但底层 schema 没改。
+const _DIM_UI_HIDDEN = {
+  tasks: ['scene', 'location_address', 'environment',
+          'environment_description', 'environment_description_en', 'facility_venue', 'quota_min',
+          'process_en'],
+  environments: ['environment_description_en'],
+};
+
+// 操作列一键复制：每个 dim 配置要复制的字段（不挂 inline cell，避免和 input/翻译按钮事件冲突）
+const _DIM_COPY_OPS = {
+  recorders:   { field: 'id',                          label: '录入员 id' },
+  tasks:        { field: 'process_en',                  label: '工序英文' },
+  environments: { field: 'environment_description_en',  label: '环境描述英文' },
+};
+
+function _uiFields(name) {
+  const hidden = _DIM_UI_HIDDEN[name] || [];
+  const schema = (dimPageState[name] && dimPageState[name].schema) || [];
+  return schema.filter(f => !hidden.includes(f));
+}
+
+async function dimReload(name) {
+  const st = dimPageState[name];
+  const hasNew = st.newKeys && st.newKeys.size > 0;
+  const hasDirty = st.dirty && st.dirty.size > 0;
+  if (hasNew || hasDirty) {
+    const which = [];
+    if (hasNew) which.push('新增行（未保存）');
+    if (hasDirty) which.push('已修改行（未保存）');
+    if (!confirm('有未保存的改动：\n' + which.join('和') + '\n\n重载会丢失这些改动。\n\n确定要重载吗？')) return;
+  }
+  const status = document.getElementById('dimStatus' + _cap(name));
+  if (status) status.textContent = '加载中…';
+  try {
+    const r = await fetch('/api/dim/' + name);
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const data = await r.json();
+    dimCache[name] = data.rows || [];
+    dimPageState[name].schema = data.schema || [];
+    dimPageState[name].rows = (data.rows || []).map(r => ({ ...r }));
+    dimPageState[name].dirty = new Set();
+    dimPageState[name].newKeys = new Set();
+    // 自动排序：tasks 页面加载后按 产品→任务→工具 排序
+    if (name === 'tasks' && _tasksAutoSort) {
+      _applyTasksSort();
+      _persistTasksOrder();
+    }
+    // 确保可编辑下拉选项（business_type/business_name）已加载
+    await loadEditableOpts();
+    dimRenderTable(name);
+    let msg = `已加载 ${data.count} 行`;
+    if (data.migrated && data.migrated.length) {
+      msg += ` · 自动收录 ${data.migrated.length} 项（录入员列）`;
+    }
+    if (status) status.textContent = msg;
+    _updateDimSaveCount(name);
+  } catch (e) {
+    if (status) status.textContent = '加载失败: ' + e.message;
+  }
+}
+
+// Dim page element-id convention: "sd_cards" → "SdCards" (camelCase, not naive _cap)
+const DIM_ID_CAP = {
+  recorders:   "Recorders",
+  sd_cards:     "SdCards",
+  tasks:        "Tasks",
+  environments: "Environments",
+};
+function _cap(name) {
+  if (DIM_ID_CAP[name]) return DIM_ID_CAP[name];
+  return name.charAt(0).toUpperCase() + name.slice(1);
+}
+
+function dimRenderTable(name) {
+  const st = dimPageState[name];
+  const headEl = document.getElementById('dimHead' + _cap(name));
+  const bodyEl = document.getElementById('dimBody' + _cap(name));
+  const key = st.schema[0]; // 主键（永远保留显示，不用 _uiFields 屏蔽）
+  const uiFields = _uiFields(name);          // 含主键，过滤掉 UI 隐藏列
+  const fields = _DIM_FIELDS[name] || {};
+
+  // 表头
+  let head = '<th style="min-width:60px;">#</th>';
+  head += `<th style="min-width:80px;">${key}</th>`;
+  uiFields.slice(1).forEach(fn => {
+    const ph = fields[fn] && fields[fn].placeholder ? fields[fn].placeholder : fn;
+    const star = (fields[fn] && fields[fn].required) ? '<span style="color:#cf1322;" title="提交视频必填">*</span>' : '';
+    const extraStyle = (fn === 'process') ? ' style="min-width:360px;"' : '';
+    const thTitle = (fields[fn] && fields[fn].title) ? fields[fn].title : fn;
+    head += `<th title="${thTitle}"${extraStyle}>${star} ${ph}</th>`;
+  });
+  if (name === 'tasks') {
+    head += '<th>校验</th>';
+  }
+  head += '<th style="min-width:140px;">操作</th>';
+  headEl.innerHTML = head;
+
+  // 表体
+  let body = '';
+  const search = (st.filter || '').toLowerCase();
+  st.rows.forEach((row, idx) => {
+    // 新行判断提前到过滤前：避免搜索框非空时 4 元组空的新行被过滤掉，
+    // 导致 dimAddRow 后续 querySelector('tr') 拿到首条旧行并篡改其 dataset.key，
+    // 用户输入写到了 DOM 里看不见的 st.rows[0]，校验列永远不更新
+    const isNew = !!(row._tmpKey && st.newKeys.has(row._tmpKey));
+    // 过滤（新行豁免：未填字段时也要让用户看见并编辑）
+    if (search && !isNew) {
+      const hay = Object.values(row).join(' ').toLowerCase();
+      if (!hay.includes(search)) return;
+    }
+    // isNew 已在过滤前算出
+    const isDirty = st.dirty.has(row._tmpKey) || st.dirty.has(row[key]);
+    const rowKey = isNew && row._tmpKey ? row._tmpKey : row[key];
+    st.newKeys.add(rowKey);  // 兜底：保证 isNew 状态可识别
+    body += `<tr data-key="${esc(rowKey)}" class="${isNew ? 'dim-new' : ''} ${isDirty ? 'dirty' : ''}">`;
+    // 行级校验指示（每行开头）：✅ 有效 / ❌ 无效 + tooltip 说明
+    if (name === 'tasks') {
+      const v = _taskValidateRow(row);
+      const icon = v.ok ? '✅' : '❌';
+      const cls = v.ok ? 'ok' : 'err';
+      body += `<td><span class="task-row-status ${cls}" title="${esc(v.reason || '5 元组有效')}" data-row-valid="${v.ok ? '1' : '0'}">${icon}</span></td>`;
+    } else {
+      body += `<td style="color:#aaa;">${idx + 1}</td>`;
+    }
+    body += `<td>`;
+    {
+      // 主键列也可能要挂 📋（比如 recorders.id 是主键，COPY_FIELDS 目标）
+      const pkCopy = _DIM_COPY_OPS[name];
+      if (pkCopy && key === pkCopy.field) {
+        body += `<span style="display:inline-flex;align-items:center;gap:3px;width:100%;">
+          <input type="text" data-field="${key}" value="${esc(row[key])}" ${(isNew && name !== 'tasks') ? '' : (name === 'tasks' ? 'readonly style="background:#fafafa;color:#555;"' : '')} oninput="dimRowInput('${name}', this)" onblur="dimRowBlur('${name}', this)" style="flex:1;min-width:0;">
+          <button type="button" class="btn btn-outline btn-small" style="background:#f6ffed;border-color:#b7eb8f;color:#389e0d;padding:2px 8px;line-height:1.2;flex-shrink:0;" title="把${pkCopy.label}一键复制到上传助手" onclick="dimCopyFieldToClipboard('${name}', '${esc(rowKey)}', '${pkCopy.field}', this)">📋</button>
+        </span>`;
+      } else {
+        body += `<input type="text" data-field="${key}" value="${esc(row[key])}" ${(isNew && name !== 'tasks') ? '' : (name === 'tasks' ? 'readonly style="background:#fafafa;color:#555;"' : '')} oninput="dimRowInput('${name}', this)" onblur="dimRowBlur('${name}', this)">`;
+      }
+    }
+    body += `</td>`;
+    uiFields.slice(1).forEach(fn => {
+      const spec = fields[fn] || { type: 'text' };
+      let cell;
+      if (spec.type === 'select' && spec.optionsFromUpload && spec.searchable) {
+        // 可搜索下拉（如 scene）：前端只显示中文，保存也存中文，对齐提交页面前端选项
+        const uploadKey = spec.optionsFromUpload;
+        const uploadOptsList = (uploadOpts && uploadOpts[uploadKey]) ? uploadOpts[uploadKey] : [];
+        const curVal = row[fn] || '';
+        let curDisplay = curVal;
+        if (curVal) {
+          // 先在 taxonomy scenes 中按 value 找
+          const found = uploadOptsList.find(o => o.value === curVal);
+          if (found) {
+            curDisplay = found.label || found.value;
+          } else {
+            // 在 live sceneNames 中按 value/labelZh 找（兼容中文/英文旧值）
+            const liveList = (uploadOpts && uploadOpts.sceneNames) ? uploadOpts.sceneNames : [];
+            const liveFound = liveList.find(s => s.value === curVal || s.labelZh === curVal);
+            if (liveFound) {
+              curDisplay = liveFound.labelZh || liveFound.label || liveFound.value;
+            } else {
+              curDisplay = curVal;
+            }
+          }
+        }
+        console.log('[scene render]', { fn, curVal, curDisplay, uploadOptsListLen: uploadOptsList.length });
+        const safeKey = (rowKey || ('idx' + idx)).replace(/[^a-zA-Z0-9一-鿿]/g, '_');
+        const uid = 'ss-' + name + '-' + safeKey;
+        // 注册选项到全局；v（真实值）和 d（显示文本）都使用中文
+        if (!window._ssOpts) window._ssOpts = {};
+        window._ssOpts[uid] = uploadOptsList.map(o => ({
+          v: o.label || o.value,
+          d: o.label || o.value
+        }));
+        // 合并 live 抓取的 sceneNames（809 个），只显示中文、保存中文
+        if (fn === 'scene' && uploadOpts && uploadOpts.sceneNames && uploadOpts.sceneNames.length) {
+          const existingDisplays = new Set(uploadOptsList.map(o => o.label || o.value));
+          const extra = uploadOpts.sceneNames
+            .filter(s => {
+              const zh = s.labelZh || s.value;
+              return !existingDisplays.has(zh);
+            })
+            .map(s => {
+              const zh = s.labelZh || s.value;
+              return { v: zh, d: zh };
+            });
+          if (extra.length) {
+            window._ssOpts[uid] = [...window._ssOpts[uid], ...extra].sort((a, b) => a.d.localeCompare(b.d, 'zh'));
+          }
+        }
+        cell = `<span class="searchable-sel" style="position:relative;display:inline-block;width:100%;">
+          <input class="searchable-sel-input" id="${uid}_inp" type="text" value="${esc(curDisplay)}"
+            onfocus="ssOpen('${uid}')" oninput="ssFilter('${uid}')"
+            onkeydown="ssKeyNav(event,'${uid}')"
+            onblur="setTimeout(() => dimRowBlur('${name}', document.getElementById('${uid}_val')), 150)"
+            placeholder="搜索场景…" autocomplete="off" style="width:100%;box-sizing:border-box;">
+          <input type="hidden" data-field="${fn}" class="searchable-sel-val" id="${uid}_val" value="${esc(curVal)}">
+          <div class="searchable-sel-drop" id="${uid}_drop" style="display:none;position:fixed;z-index:2147483647;background:#fff;border:1px solid #d9d9d9;border-radius:4px;max-height:240px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,0.18);font-size:13px;"></div>
+        </span>`;
+      } else if (spec.type === 'select') {
+        // 所有 plain select 都改为可搜索下拉（searchable-sel）
+        const curVal = row[fn] || '';
+        const safeKey = (rowKey || ('idx' + idx)).replace(/[^a-zA-Z0-9一-鿿]/g, '_');
+        // uid 必须含字段名 fn，同行不同字段 uid 必须不同
+        const uid = 'ss-' + name + '-' + fn + '-' + safeKey;
+        if (!window._ssOpts) window._ssOpts = {};
+        // 转换为 {v,d} 格式：label 显示用，v 是真实值；空字符串显示为空而非 '--'
+        window._ssOpts[uid] = spec.options.map(o => {
+          if (o && typeof o === 'object') return { v: o.value, d: o.label || o.value };
+          return { v: o, d: o === '' ? '' : (o || '--') };
+        });
+        const optPairs = window._ssOpts[uid];
+        let curDisplay = curVal;
+        if (curVal) {
+          const found = optPairs.find(o => o.v === curVal);
+          if (found) curDisplay = found.d;
+        }
+        // difficulty 改值时仍需触发 dimOnDifficultyChange（通过 ssSelect 后的 dimRowInput）
+        const extraOnSelect = (name === 'tasks' && fn === 'difficulty')
+          ? `; if(typeof dimOnDifficultyChange==='function') dimOnDifficultyChange(document.getElementById('${uid}_val'))`
+          : '';
+        cell = `<span class="searchable-sel" style="position:relative;display:inline-block;width:100%;">
+          <input class="searchable-sel-input" id="${uid}_inp" type="text" value="${esc(curDisplay)}"
+            onfocus="ssOpen('${uid}')" oninput="ssFilter('${uid}')"
+            onkeydown="ssKeyNav(event,'${uid}')"
+            onblur="setTimeout(() => { dimRowBlur('${name}', document.getElementById('${uid}_val'));${extraOnSelect}}, 180)"
+            placeholder="搜索…" autocomplete="off" style="width:100%;box-sizing:border-box;">
+          <input type="hidden" data-field="${fn}" class="searchable-sel-val" id="${uid}_val" value="${esc(curVal)}">
+          <div class="searchable-sel-drop" id="${uid}_drop" style="display:none;position:fixed;z-index:2147483647;background:#fff;border:1px solid #d9d9d9;border-radius:4px;max-height:240px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,0.18);font-size:13px;"></div>
+        </span>`;
+      } else if (spec.type === 'number') {
+        cell = `<input type="number" data-field="${fn}" value="${esc(row[fn])}" oninput="dimRowInput('${name}', this)" onblur="dimRowBlur('${name}', this)">`;
+      } else if (spec.type === 'select-editable') {
+        // 可编辑下拉（business_type / business_name）：改为 searchable-sel + ✎ 按钮
+        const optField = spec.optionField || fn;
+        const opts = getEditableOptions(optField);
+        const cur = row[fn] || '';
+        const safeKey = (rowKey || ('idx' + idx)).replace(/[^a-zA-Z0-9一-鿿]/g, '_');
+        // uid 必须含字段名 fn，同行不同字段 uid 必须不同
+        const uid = 'ss-' + name + '-' + fn + '-' + safeKey;
+        if (!window._ssOpts) window._ssOpts = {};
+        window._ssOpts[uid] = opts.map(o => ({ v: o.value, d: o.label || o.value }));
+        let curDisplay = cur;
+        if (cur) {
+          const found = opts.find(o => o.value === cur);
+          if (found) curDisplay = found.label || found.value;
+        }
+        // 用户输入了不在列表中的值时，作为临时 phantom 项加入（下次保存后服务端会验证）
+        if (cur && !opts.some(o => o.value === cur)) {
+          window._ssOpts[uid].push({ v: cur, d: cur });
+        }
+        const editBtn = `<button class="btn btn-outline btn-tiny" title="编辑选项" onclick="event.stopPropagation(); openEditOptionsModal('${name}', '${optField}')" style="margin-left:2px;padding:0 4px;font-size:10px;flex-shrink:0;line-height:1;">✎</button>`;
+        cell = `<span style="display:inline-flex;align-items:center;gap:2px;">
+          <span class="searchable-sel" style="position:relative;display:inline-block;flex:1;min-width:0;">
+            <input class="searchable-sel-input" id="${uid}_inp" type="text" value="${esc(curDisplay)}"
+              onfocus="ssOpen('${uid}')" oninput="ssFilter('${uid}')"
+              onkeydown="ssKeyNav(event,'${uid}')"
+              onblur="setTimeout(() => dimRowBlur('${name}', document.getElementById('${uid}_val')), 180)"
+              autocomplete="off" style="width:100%;box-sizing:border-box;">
+            <input type="hidden" data-field="${fn}" class="searchable-sel-val" id="${uid}_val" value="${esc(cur)}">
+            <div class="searchable-sel-drop" id="${uid}_drop" style="display:none;position:fixed;z-index:2147483647;background:#fff;border:1px solid #d9d9d9;border-radius:4px;max-height:240px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,0.18);font-size:13px;"></div>
+          </span>${editBtn}</span>`;
+      } else if (name === 'tasks' && fn === 'process_en') {
+        cell = `<span style="display:inline-flex;align-items:center;gap:3px;width:100%;">
+          <button class="btn btn-outline btn-tiny" title="重新翻译" onclick="event.stopPropagation(); translateSingleProcess(this)" style="padding:0 4px;font-size:13px;flex-shrink:0;line-height:1;">🔄</button>
+          <input type="text" data-field="${fn}" value="${esc(row[fn])}" oninput="dimRowInput('${name}', this)" onblur="dimRowBlur('${name}', this)" style="flex:1;min-width:0;">
+          <button type="button" class="btn btn-outline btn-small" style="background:#f6ffed;border-color:#b7eb8f;color:#389e0d;padding:2px 8px;line-height:1.2;flex-shrink:0;" title="复制工序英文到剪贴板" onclick="dimCopyFieldToClipboard('${name}', '${esc(rowKey)}', '${fn}', this)">📋</button>
+        </span>`;
+      } else if (name === 'environments' && fn === 'environment_description_en') {
+        cell = `<span style="display:inline-flex;align-items:center;gap:3px;width:100%;">
+          <button class="btn btn-outline btn-tiny" title="重新翻译" onclick="event.stopPropagation(); translateSingleEnvDescription(this)" style="padding:0 4px;font-size:13px;flex-shrink:0;line-height:1;">🔄</button>
+          <input type="text" data-field="${fn}" value="${esc(row[fn])}" oninput="dimRowInput('${name}', this)" onblur="dimRowBlur('${name}', this)" style="flex:1;min-width:0;">
+          <button type="button" class="btn btn-outline btn-small" style="background:#f6ffed;border-color:#b7eb8f;color:#389e0d;padding:2px 8px;line-height:1.2;flex-shrink:0;" title="复制环境描述英文到剪贴板" onclick="dimCopyFieldToClipboard('${name}', '${esc(rowKey)}', '${fn}', this)">📋</button>
+        </span>`;
+      } else {
+        const inputExtraStyle = (name === 'tasks' && fn === 'process') ? ' style="min-width:360px;width:100%;"' : '';
+        cell = `<input type="text" data-field="${fn}" value="${esc(row[fn])}" oninput="dimRowInput('${name}', this)" onblur="dimRowBlur('${name}', this)"${inputExtraStyle}>`;
+      }
+      body += `<td>${cell}</td>`;
+    });
+    if (name === 'tasks') {
+      // 行级缺字段提示：4 元组必填，difficulty 可选
+      const v = _taskValidateRow(row);
+      const filledCount = ['product','task','tool','process'].filter(f => (row[f]||'').trim()).length;
+      const missingHint = filledCount < 4
+        ? `<span class="task-row-hint" style="color:#cf1322;font-size:11px;">⚠ 还差 ${4 - filledCount} / 4 字段</span>`
+        : `<span class="task-row-hint" style="color:#389e0d;font-size:11px;">✓ 4/4</span>`;
+      body += `<td>${missingHint}</td>`;
+    }
+    body += `<td class="dim-actions">
+      <button class="btn btn-success btn-small" onclick="dimSaveOne('${name}', '${esc(rowKey)}')">保存</button>
+      <button class="btn btn-danger btn-small" onclick="dimDeleteRow('${name}', '${esc(rowKey)}')">删</button>${name === 'tasks' ? `<button class="btn btn-outline btn-small" title="复制并清空task_id/产品/任务/工具/工序" onclick="dimCopyRow('${name}', '${esc(rowKey)}')">拷贝</button>` : ''}
+    </td>`;
+    body += '</tr>';
+  });
+  bodyEl.innerHTML = body || '<tr><td colspan="99" style="text-align:center;color:#888;padding:20px;">（空）</td></tr>';
+}
+
+function dimFilterRows(name) {
+  const el = document.getElementById('dimSearch' + _cap(name));
+  dimPageState[name].filter = el ? el.value : '';
+  dimRenderTable(name);
+  _updateDimSaveCount(name);
+}
+
+function dimRowInput(name, input) {
+  const tr = input.closest('tr');
+  if (!tr) { console.warn('[dimRowInput] no tr.parent for input', input); return; }
+  const key = tr.dataset.key || tr.getAttribute('data-key') || '';
+  const field = input.dataset.field;
+  // searchable-sel 组件：真实值存在同名的 hidden.searchable-sel-val 里，不能取可见 input 的 value（那是显示文本）
+  const hiddenVal = input.classList.contains('searchable-sel-input')
+    ? (tr.querySelector('input.searchable-sel-val[data-field="' + field + '"]') || {}).value
+    : undefined;
+  const value = hiddenVal !== undefined ? hiddenVal : input.value;
+  const st = dimPageState[name];
+  if (!st) { console.warn('[dimRowInput] no dimPageState for', name); return; }
+  const primary = st.schema[0];
+  console.log('[dimRowInput]', { name, key, field, value, rowKey: key });
+  let target = st.rows.find(r => (r[primary] || '') === key);
+  if (!target) target = st.rows.find(r => r._tmpKey === key);
+  if (!target) target = st.rows.find(r => !(r[primary] || ''));
+  if (target) {
+    const oldPrimary = target[primary];
+    target[field] = value;
+    const newPrimary = field === primary ? value : target[primary];
+    // 主键改名：第一次改后记录 originalKey（=最初保存到服务器的主键值），之后
+    // 后续的连续修改（一次输入 l → "" → o → op → op02 多次改名）都以这个 originalKey
+    // 为锚，dimSaveOne 用它作为 ?original_key= 参数，从而服务端能正确 rename。
+    if (field === primary && newPrimary !== oldPrimary) {
+      if (!tr.dataset.originalKey) {
+        tr.dataset.originalKey = oldPrimary || key;
+      }
+      const newKey = newPrimary;
+      if (st.dirty.has(key)) { st.dirty.delete(key); st.dirty.add(newKey); }
+      if (st.newKeys.has(key)) { st.newKeys.delete(key); st.newKeys.add(newKey); }
+      tr.setAttribute('data-key', newKey);
+      tr.dataset.key = newKey;
+    }
+
+    if (name === 'tasks') _taskRefreshRowHint(tr, target);
+  } else {
+    console.error('[dimRowInput] NO TARGET FOUND!', { key, primary, rows: st.rows.length, sampleKeys: st.rows.map(r => r[primary] || r._tmpKey) });
+  }
+  st.dirty.add(tr.dataset.key);
+  tr.classList.add('dirty');
+  _updateDimSaveCount(name);
+}
+
+// 任务页：局部刷新该行的「校验」状态图标 + 「缺字段提示」
+function _taskRefreshRowHint(tr, row) {
+  if (!tr) return;
+  const v = _taskValidateRow(row);
+  // 1) 第一个 td 里的 .task-row-status
+  const statusSpan = tr.querySelector('td .task-row-status');
+  if (statusSpan) {
+    statusSpan.textContent = v.ok ? '✅' : '❌';
+    statusSpan.className = 'task-row-status ' + (v.ok ? 'ok' : 'err');
+    statusSpan.title = v.reason || '5 元组有效';
+    statusSpan.setAttribute('data-row-valid', v.ok ? '1' : '0');
+  }
+  // 2) 「缺字段提示」cell（table 内第 4 列：idx, status, key, primary, 校验, scene, ... — 校验列）
+  //    我们根据现有结构找：找第一个 .task-row-hint
+  const hintSpan = tr.querySelector('.task-row-hint');
+  if (hintSpan) {
+    if (v.ok) {
+      hintSpan.textContent = '✓ 4/4';
+      hintSpan.style.color = '#389e0d';
+      hintSpan.title = '';
+    } else {
+      const missing = ['product','task','tool','process'].filter(f => !(row[f]||'').trim()).length;
+      hintSpan.textContent = `⚠ 还差 ${missing} / 4 字段`;
+      hintSpan.style.color = '#cf1322';
+      hintSpan.title = v.reason || '';
+    }
+  }
+}
+
+function dimOnDifficultyChange(sel) {
+  // 任务页 difficulty 改值时：已由 _DIM_FIELDS 的 onChange handler 处理 dimRowInput
+  // （配额相关逻辑已移除）
+}
+
+/* dimRowBlur — 输入框/下拉框失去焦点时自动保存当前行（400ms 防抖） */
+const _dimBlurTimers = {};
+
+function dimRowBlur(name, input) {
+  const tr = input.closest('tr');
+  if (!tr) return;
+  const st = dimPageState[name];
+  if (!st || !st.dirty) return;
+  const rowKey = tr.dataset.key || tr.getAttribute('data-key') || '';
+  if (!rowKey) return;
+  // 只保存确实被标记为 dirty 的行
+  if (!st.dirty.has(rowKey)) return;
+  if (!_dimBlurTimers[name]) _dimBlurTimers[name] = {};
+  if (_dimBlurTimers[name][rowKey]) clearTimeout(_dimBlurTimers[name][rowKey]);
+  _dimBlurTimers[name][rowKey] = setTimeout(() => {
+    delete _dimBlurTimers[name][rowKey];
+    dimSaveOne(name, rowKey);
+  }, 400);
+}
+
+/* ============================================================ */
+/* === TASK WIZARD (5 元组 → task_id)                          === */
+/* ============================================================ */
+</script>
+<script src="/static/js/task-wizard.js"></script>
+<script>
+async function batchTaskConfirm() {
+  if (_btwRows.length === 0) {
+    await batchTaskPreview();
+  }
+  const valid = _btwRows.filter(r => r.ok && r.taskId);
+  if (valid.length === 0) {
+    showToast('没有可添加的行；请先点「预览」校验', 'warn');
+    return;
+  }
+  let added = 0, skipped = 0;
+  for (const r of valid) {
+    const [product, task, tool, process, difficulty, notes] = r.fields;
+    try {
+      const cr = await fetch('/api/dim/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          row: {
+            task_id: r.taskId, product, task, tool, process,
+            difficulty, notes,
+          },
+          mode: 'upsert',
+        }),
+      });
+      const cd = await cr.json();
+      if (cr.ok) {
+        if (cd.action === 'inserted') added++;
+        else if (cd.action === 'updated') skipped++;
+      }
+    } catch (e) { /* ignore */ }
+  }
+  showToast(`批量完成：新增 ${added} 条，更新 ${skipped} 条`, 'success');
+  closeBatchTaskWizard();
+  dimReload('tasks');
+}
+</script>
+<script src="/static/js/dim-write-ops.js"></script>
+<script>
+async function dimDeleteRow(name, keyVal) {
+  // 检查 video_manager.csv 是否引用该主键
+  const FK = { recorders: 'recorder_id', sd_cards: 'sd_card_id', tasks: 'task_id' };
+  const fkCol = FK[name];
+  const refCount = fkCol
+    ? tableData.filter(r => (r[fkCol] || '') === keyVal).length
+    : 0;
+  let msg = `确认删除「${keyVal}」？此操作不可撤销。`;
+  if (refCount > 0) {
+    msg = `「${keyVal}」被 video_manager.csv 中 ${refCount} 条记录引用（列：${fkCol}）。\n\n删除后这些记录将变成悬空引用。\n\n确认仍要删除？`;
+  }
+  if (!confirm(msg)) return;
+  try {
+    const r = await fetch('/api/dim/' + name + '/' + encodeURIComponent(keyVal), { method: 'DELETE' });
+    const data = await r.json();
+    if (!r.ok) { showToast('删除失败: ' + (data.error || r.status), 'warn'); return; }
+    dimReload(name);
+    showToast('已删除', 'success');
+  } catch (e) {
+    showToast('删除异常: ' + e.message, 'warn');
+  }
+}
+
+</script>
+<script src="/static/js/translate-functions.js"></script>
+<script src="/static/js/statistics-page.js"></script>
+<script src="/static/js/settings-page.js"></script>
+</body>
+</html>

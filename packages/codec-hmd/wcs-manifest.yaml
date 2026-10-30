@@ -1,0 +1,145 @@
+# WCS Manifest — codec-hmd
+# 中央索引：列出全部基线文档、AI 入口、按任务类型加载规则。
+# v2.0 强制：先读本文件，再按 task_mapping 加载 docs/*。
+
+project:
+  name: codec-hmd
+  type: hmd-video-processor
+  upstream: video-sort-package  # 2026-06 决策：codec-hmd 整体并入 video-sort-package
+  status: pre-merge
+  primary_entry: hmd-preview.html
+  language: javascript   # 浏览器内 WebCodecs + Node CLI 共用 hmd-decode.js
+
+# ─────────────────────────────────────────────
+# 1. 文档清单（基线，wcs v2.0 强制保留）
+# ─────────────────────────────────────────────
+docs:
+  - id: readme
+    path: README.md
+    purpose: 项目入口 / 快速启动 / 文档导航
+    update_trigger: user-facing 行为变化 / quickstart 命令变化
+    load_when: [always]
+
+  - id: dev_plan
+    path: docs/dev_plan.md
+    purpose: 路线图 / 当前进行中任务 / 待办
+    update_trigger: 任务状态变化（pending → in_progress → completed）
+    load_when: [new_feature, handoff, audit]
+
+  - id: dev_log
+    path: docs/dev_log.md
+    purpose: 实现记录 / 验证证据 / 回顾
+    update_trigger: 完成一个任务并验证通过
+    load_when: [handoff, review, audit]
+
+  - id: project_status
+    path: docs/project_status.md
+    purpose: 当前架构 / 功能开关 / 已知限制
+    update_trigger: 架构变化 / 新功能上线 / 重要限制被解决
+    load_when: [new_feature, bug_fix, handoff]
+
+  - id: structure
+    path: docs/structure.md
+    purpose: 目录与模块映射
+    update_trigger: 文件/模块增删 / 跨模块依赖变化
+    load_when: [new_feature, refactor, handoff]
+
+  - id: error_book
+    path: docs/error_book.md
+    purpose: 已知 bug 根因 / 复现 / 修复 / 预防
+    update_trigger: 新增/修复一个 bug
+    load_when: [bug_fix, review]
+
+  - id: features
+    path: docs/features.md
+    purpose: 已实现能力索引（用户视角）
+    update_trigger: 新能力上线 / 旧能力废弃
+    load_when: [review, handoff]
+
+  - id: coding_standards
+    path: docs/CODING_STANDARDS.md
+    purpose: 本项目编码规范章程
+    update_trigger: 风格变更 / 引入新工具
+    load_when: [new_feature, bug_fix, refactor]
+
+  - id: workflow
+    path: docs/workflow.md
+    purpose: 执行流程协议 / 质量门
+    update_trigger: 流程变更
+    load_when: [new_feature, handoff]
+
+  - id: prompt_txt
+    path: prompt.txt
+    purpose: 用户原始需求
+    update_trigger: 用户重写 prompt
+    load_when: [new_feature, audit]
+
+# ─────────────────────────────────────────────
+# 2. 任务类型 → 需要加载的 docs
+# ─────────────────────────────────────────────
+task_mapping:
+  new_feature:   [dev_plan, project_status, structure, coding_standards, workflow, features]
+  bug_fix:       [project_status, structure, error_book, coding_standards]
+  refactor:      [structure, coding_standards, dev_log]
+  handoff:       [dev_plan, dev_log, project_status, features, error_book]
+  review:        [dev_log, features, error_book, project_status]
+  audit:         [dev_plan, project_status, features, error_book, structure]
+
+# ─────────────────────────────────────────────
+# 3. AI 启动序列（v2.0 强制）
+# ─────────────────────────────────────────────
+startup_sequence:
+  - 读 wcs-manifest.yaml（本文件）
+  - 确认任务类型
+  - 按 task_mapping 加载 docs
+  - 任何 docs 更新前先查 update_trigger
+  - 严禁未读 manifest 就 Read 多个 docs/*
+
+# ─────────────────────────────────────────────
+# 4. 上下文护栏
+# ─────────────────────────────────────────────
+context_guard:
+  max_docs_per_turn: 3
+  forbid_bulk_read: true
+  # 读 docs/* 之前必须先在 task_mapping 找到对应 task 类型
+
+# ─────────────────────────────────────────────
+# 5. 自迭代约束（不可违反）
+# ─────────────────────────────────────────────
+self_iteration:
+  wcs_is_consumer: true
+  no_new_runtime_deps: true
+  prefer_builtin_tools: [ripgrep, git, claude_read]
+  structure_over_narrative: true
+  on_demand_loading_is_default: true
+  manifest_is_source_of_truth: true
+
+# ─────────────────────────────────────────────
+# 6. 外部工具
+# ─────────────────────────────────────────────
+external_tools:
+  codegraph: null  # 本项目暂无 codegraph 索引
+  mediary: null
+  context_mode: true   # 大量 raw output / 文档走 ctx_execute_file
+  rtk: true            # shell 命令走 rtk 节省 token
+
+# ─────────────────────────────────────────────
+# 7. 接力交接（2026-06-17）
+# ─────────────────────────────────────────────
+handoff:
+  date: "2026-06-17"
+  backup_zip: "../../handoff-2026-06-17-pre-frameforge.zip"
+  status_doc: "docs/handoff-2026-06-17.md"
+  context: |
+    两个并行 agent 接力：frameforge 上传 + 不同管理页面。
+    看完 docs/handoff-2026-06-17.md 再动手，里面有已完成清单、
+    待办、API 端点、文件交接清单和注意事项。
+  done_tasks: [1, 3, 4, 5, 15, 16, 18, 19]
+  pending_tasks: [6, 7, 8, 9, 10, 11, 12, 13, 14, 17]
+  integration_points:
+    - "app.py L182 scan endpoint with HMD folder detection"
+    - "app.py L482-617 HMD info/raw/duration/register/process routes"
+    - "app.py L620-700 /api/dim/* dimension table CRUD"
+    - "app.py L1320+ /api/upload-* (existing MP4 upload, needs HMD + frameforge adapter)"
+    - "templates/index.html has inline HMD dual-eye panel"
+    - "tools/hmd_preprocess.py for server-side splitStereo + ffmpeg"

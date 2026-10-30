@@ -1,0 +1,123 @@
+# project_index.yaml — video-manager 项目中枢索引
+# WCS 维护入口：任何任务开始前先读此文件
+# 最后更新：2026-07-01
+
+project:
+  name: video-manager
+  description: 一站式 HMD/MP4 视频接入管理工具：扫描 → 预览 → 元数据 → 上传
+  tech_stack: Flask + PostgreSQL + 单页前端（HTML/JS/CSS） + Playwright 自动上传
+  entry: python src/run.py → http://localhost:5000
+  repo: https://github.com/cosmowind/video_manager
+
+maintenance:
+  current_focus: 文档同步（已完成）+ 精简（已完成：全项目文件拆分 + 调试脚本清理）+ 有序（已完成：13 个文件 <1300 行）
+  last_assessment: 2026-07-05
+  active_mode: false  # 维护完成后恢复正常模式
+
+# 维度状态（维护评估结果）
+dimensions:
+  精简:
+    status: 🟢
+    issues:
+      - ✅ 全部 Python 文件已拆分：最大 device_monitor/monitor.py (1282) + auto_upload.py (3895 调试中暂未拆)
+      - ✅ index.html 7417→2293（提取 CSS + 15 个 JS 模块）
+      - ✅ hmd_preview.html 621→155 + hmd-preview-ui.js
+      - ✅ 2026-07-05 清理 79 个未提交调试脚本（fill_frameforge_form_v1..v8 / inspect_* / migrate_* 等）+ after_inject.png + env_check.txt
+      - auto_upload.py 仍是 3895 行（用户调试上传代码中，暂不拆分）
+  有序:
+    status: 🟢
+    issues:
+      - ✅ 3 个 Python 包：device_monitor/、tools/hmd_fast/
+      - ✅ 9 个蓝图（含 3 个新增：cleanup、upload_config、auto_upload）
+      - ✅ 前端 15 个 JS 模块按功能分类到 static/js/
+  稳健:
+    status: 🟢
+    issues:
+      - ✅ 修复 upload_config_service.py 缺少 _UPLOAD_OPTIONS_CACHE 初始化
+      - ✅ 修复 index.html script 块嵌套导致 JS 显示为文本
+      - ✅ 修复 _tasksAutoSort 重复声明
+      - ✅ 修复 index.html environment_description.title 单引号字符串跨行致整脚本块失效（E15）
+      - ✅ 立调试脚本归档规矩：_debug_*.py 模式已入 .gitignore，E16
+  文档同步:
+    status: 🟢
+    issues:
+      - ✅ project_index.yaml structure 反映新包结构
+      - ✅ dev_log.md 记录本次拆分全流程
+      - ✅ structure.md 待更新（routes 列表、JS 模块清单）
+      - ✅ 已补充：features.md 增加 16 个缺失的 API 端点
+      - ✅ 已创建：docs/uin.md（AI 协作提示与约束）
+      - ✅ 已创建：docs/project_index.yaml（中枢索引）
+  高效检索:
+    status: 🟡
+    issues:
+      - ✅ 已创建：project_index.yaml 中枢索引（本文件）
+      - docs/ 下 20+ 文档已有 project_index.yaml 统一导航
+      - done/ 目录未在主文档中引用（低优先）
+
+# 文档导航
+docs:
+  # 核心文档
+  README.md: "项目入口、快速上手、文档导航"
+  docs/project_index.yaml: "WCS 中枢索引（本文件）"
+  docs/project_status.md: "当前架构与功能状态快照"
+  docs/structure.md: "目录与模块映射 + 维护导航"
+  docs/features.md: "已实现能力索引（按模块/领域）"
+  docs/dev_plan.md: "路线图与待办"
+  docs/dev_log.md: "实现与验证记录"
+  docs/error_book.md: "缺陷根因与解决手册"
+  docs/CODING_STANDARDS.md: "项目代码规范纲领"
+  docs/workflow.md: "执行流程约定"
+  docs/uin.md: "AI 协作提示与约束"
+
+  # 补充文档
+  docs/ARCHITECTURE.md: "完整目录树"
+  docs/EXPORT.md: "导出 TXT 功能说明"
+  docs/PREPROCESS_MANAGER.md: "预处理管理器说明"
+  docs/SCAN_FEATURE_UPDATE.md: "扫描功能更新记录"
+  docs/UPLOAD_DEVPLAN.md: "上传器开发规划"
+  docs/TODO.md: "待办事项"
+  docs/chrome_cdp_guide.md: "Chrome CDP 调试指南"
+  docs/file-lifecycle.md: "文件路径/生命周期说明"
+  docs/upload-fields-distribution.md: "上传字段分布说明"
+
+  # 归档
+  docs/done/: "已完成的历史文档归档"
+  docs/业务要求文档/: "业务需求文档"
+  docs/汇报情况/: "进度汇报记录"
+  docs/开发历史文档/: "开发过程中的参考资料、地址选择参考、上传页面参考等"
+  docs/开发历史文档/retrospectives/: "阶段性复盘文档（按日期）"
+
+# 代码结构速览
+structure:
+  src/app.py: "Flask 主应用 + 路由注册（544 行）"
+  src/run.py: "启动入口 + 磁盘检查 + 自动预热"
+  src/config.py: "全局常量与路径配置"
+  src/auto_upload.py: "Playwright 自动上传（3895 行，调试中暂未拆）"
+  src/device_monitor/: "设备监控包（scanner 319 + copier 613 + monitor 1282）"
+  src/routes/: "蓝图路由层（9 个蓝图：data/dim/misc/hmd/upload/video + cleanup + upload_config + auto_upload）"
+  src/services/: "业务逻辑层（16 个服务模块）"
+  src/models/: "数据层（pg_store/csv_store/cache/dim_registry）"
+  src/utils/: "工具函数（path/format/video_frames）"
+  src/templates/: "前端页面（index.html 2293 + hmd_preview.html 155）"
+  src/static/css/: "样式（index.css 840）"
+  src/static/js/: "JS 模块（15 个：render-table/hmd-inline-player/gallery-view/task-validation 等）"
+  src/scripts/: "离线运维脚本（30+ 个）"
+  src/tools/: "外部工具（hmd_fast/hmd_preprocess/extract_scenario_taxonomy）"
+  src/tools/hmd_fast/: "HMD 快速预处理包（path_utils + media_ops + preprocess）"
+  scripts/debug/: "Playwright 自动补录调试脚本（9 个，按调试阶段分类）"
+  src/vendor-upload-pkg/: "供应商版上传包（备用方案，git ignored node_modules）"
+  runtime/: "运行时数据（git ignored）"
+  scripts/: "项目级辅助脚本"
+
+# API 端点速览（完整列表见各路由文件）
+api_groups:
+  视频数据: "/api/data, /api/save, /api/save-rows, /api/delete, /api/scan, /api/data/scan"
+  维表管理: "/api/dim/<name>, /api/dim-editable-options, /api/dim/tasks/*, /api/dim/environments/*"
+  HMD 处理: "/api/hmd/process, /api/hmd/process-batch, /api/hmd/scan, /api/hmd/info, /api/hmd/raw, /api/hmd/file, /api/hmd/frame, /api/hmd/frames, /api/hmd/mp4, /api/hmd/duration, /api/hmd/register, /api/hmd/retry, /api/hmd/open, /api/hmd/process-status, /api/hmd/queue-status, /api/hmd/is-processing"
+  上传: "/api/upload-batch, /api/upload-run, /api/upload-run-cmd, /api/upload-cancel, /api/upload-status, /api/upload-generate, /api/upload-config, /api/upload-options, /api/upload-template-config, /api/upload-template/<row_index>, /api/upload-template-by-path"
+  自动上传: "/api/auto-upload-start, /api/auto-upload-status, /api/auto-upload-progress"
+  自动补录: "/api/auto-fill, /api/auto-fill/apply, /api/auto-fill/match, /api/auto-fill/defaults, /api/auto-fill/clipboard, /api/auto-fill/clipboard/set-field"
+  预览与缩略图: "/api/video, /api/video/frame, /api/video/frames, /api/thumbnail, /api/thumbnail/warm, /api/frames/warm"
+  缓存清理: "/api/clean-orphan-cache, /api/clean-uploaded-cache"
+  预处理管理: "/api/preprocess-overview, /api/preprocess-overview/enable-tracking"
+  其他: "/api/config, /api/export, /api/merge-history, /api/statistics, /api/estimate, /api/disk-space-status, /api/pick-directory, /api/resume-monitor, /api/translate-process, /api/fix-dates, /api/fix-empty-scan-dates"

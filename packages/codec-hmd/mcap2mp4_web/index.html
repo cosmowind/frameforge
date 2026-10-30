@@ -1,0 +1,401 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>mcap2mp4 — 浏览器内 remux (纯静态, 零上传)</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  :root { --bg:#0f172a; --panel:#1e293b; --p2:#273449; --fg:#e2e8f0;
+          --muted:#94a3b8; --accent:#38bdf8; --ok:#22c55e;
+          --warn:#f59e0b; --err:#ef4444; --border:#334155; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg);
+               font-family: -apple-system, "Segoe UI", Roboto, sans-serif; }
+  header { padding: 16px 22px; border-bottom: 1px solid var(--border);
+           background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%); }
+  header h1 { margin: 0; font-size: 18px; }
+  header .sub { color: var(--muted); font-size: 12px; margin-top: 4px; }
+  main { max-width: 1100px; margin: 0 auto; padding: 18px; display: grid; gap: 16px; }
+  .card { background: var(--panel); border: 1px solid var(--border);
+          border-radius: 10px; padding: 14px 18px; }
+  .card h2 { margin: 0 0 10px; font-size: 13px; color: var(--muted);
+             letter-spacing: .05em; text-transform: uppercase; font-weight: 600; }
+  .pill { display: inline-block; padding: 2px 10px; border-radius: 999px;
+          font-size: 12px; font-weight: 600; }
+  .pill.idle    { background: #475569; color: #f1f5f9; }
+  .pill.running { background: var(--warn); color: #1f1300; }
+  .pill.done    { background: var(--ok);   color: #052e10; }
+  .pill.error   { background: var(--err);  color: #fff; }
+  .progress { height: 10px; background: var(--p2); border: 1px solid var(--border);
+              border-radius: 6px; overflow: hidden; margin-top: 6px; }
+  .progress > div { height: 100%; width: 0%; background: linear-gradient(90deg, var(--accent), #818cf8);
+                    transition: width .25s ease; }
+  button { background: var(--accent); color: #0b1220; border: 0;
+           padding: 9px 16px; border-radius: 6px; font-weight: 600;
+           cursor: pointer; font-size: 13px; }
+  button.secondary { background: var(--p2); color: var(--fg); border: 1px solid var(--border); }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .hint { color: var(--muted); font-size: 12px; }
+  .warn-box { background: rgba(245,158,11,.08); border: 1px solid rgba(245,158,11,.4);
+              color: #fcd34d; padding: 8px 12px; border-radius: 6px; font-size: 12px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--border); }
+  th { color: var(--muted); font-size: 12px; font-weight: 600; }
+  td.name { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 12px; }
+  .badge { display: inline-block; padding: 1px 8px; border-radius: 4px;
+           font-size: 11px; font-weight: 600; }
+  .badge.ok      { background: rgba(34,197,94,.2);  color: #86efac; }
+  .badge.skipped { background: rgba(245,158,11,.2); color: #fcd34d; }
+  .badge.error   { background: rgba(239,68,68,.2);  color: #fca5a5; }
+  a.btn-link { color: var(--accent); text-decoration: none; margin-right: 10px; }
+  a.btn-link:hover { text-decoration: underline; }
+  pre.log { background: #0b1220; color: #cbd5e1; padding: 10px 12px; border-radius: 6px;
+            font-family: ui-monospace, Consolas, monospace; font-size: 12px;
+            max-height: 220px; overflow: auto; border: 1px solid var(--border);
+            white-space: pre-wrap; }
+  details summary { cursor: pointer; color: var(--muted); font-size: 12px; }
+  .kv { display: grid; grid-template-columns: 110px 1fr; gap: 4px 12px; font-size: 13px; }
+  .kv .k { color: var(--muted); }
+  #filelist { max-height: 240px; overflow: auto; font-size: 12px;
+              background: var(--p2); padding: 8px 10px; border-radius: 6px;
+              border: 1px solid var(--border); margin: 0; padding-left: 26px; }
+  #pickerRow input[type=file] { color: var(--fg); max-width: 480px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>mcap -&gt; mp4 浏览器内 remux</h1>
+  <div class="sub">纯静态页 · 文件全程不离开本机 · 无网络请求</div>
+</header>
+
+<main>
+  <section class="card">
+    <h2>1. 选择输入文件夹 A</h2>
+    <p class="hint">
+      点【选择文件夹】选你本地的「输入文件夹 A」（里面多个 session 子文件夹，每个含 <code>session.json</code> + <code>ego_*.mcap</code>）。
+      建议 <b>Chrome / Edge / Firefox</b>；IE 不支持。
+    </p>
+    <div class="row" id="pickerRow">
+      <input type="file" id="folderPicker" webkitdirectory multiple directory>
+      <button id="clearBtn" class="secondary" disabled>清空</button>
+      <span id="pickInfo" class="hint">尚未选择文件夹。</span>
+    </div>
+    <ul id="filelist" style="margin-top:10px;display:none"></ul>
+  </section>
+
+  <section class="card">
+    <h2>2. 转换</h2>
+    <p class="hint">转换在浏览器里直接跑，纯 JS 重写 MP4 容器（不重新编码）。大文件（2GB+）会优先尝试 <code>File System Access API</code> 直接流式写盘；不支持时退回 Blob 下载。</p>
+    <div class="row">
+      <button id="convertBtn" disabled>开始转换</button>
+      <span id="statePill" class="pill idle">idle</span>
+      <span class="hint" id="curHint"></span>
+    </div>
+    <div class="kv" style="margin-top:10px">
+      <div class="k">当前</div><div id="curName">—</div>
+      <div class="k">进度</div><div id="progText">0 / 0</div>
+    </div>
+    <div class="progress" id="progBar"><div></div></div>
+    <details style="margin-top:10px"><summary>日志（最近 200 条）</summary>
+      <pre id="log" class="log"></pre>
+    </details>
+  </section>
+
+  <section class="card">
+    <h2>3. 已生成的 mp4</h2>
+    <div class="warn-box">
+      提示：输出是标准 <b>H.265/HEVC + MP4</b>。Chrome / Firefox / Edge 浏览器里 <code>&lt;video&gt;</code> 一般播不了
+      （HEVC 浏览器原生支持差），请【下载】按钮存到本地用 <b>VLC / PotPlayer / ffmpeg</b> 打开。
+    </div>
+    <table style="margin-top:10px">
+      <thead><tr><th>文件名</th><th>大小</th><th>帧数</th><th>状态</th><th>操作</th></tr></thead>
+      <tbody id="resultBody"><tr><td colspan="5" class="hint">暂无</td></tr></tbody>
+    </table>
+  </section>
+</main>
+
+<!-- core.js 暴露的解析 + 封装 API -->
+<script src="core.js"></script>
+<script>
+"use strict";
+
+// ---------- 状态 ----------
+var STATE = {
+  files: [],            // [{rel, size, file, mcapBytes?}]
+  results: [],          // [{name, blob, size, frameCount, status, error}]
+  // FSA API 检测
+  fsa: !!(window.showSaveFilePicker && window.FileSystemWritableFileStream),
+};
+
+// ---------- 工具 ----------
+function $(s) { return document.querySelector(s); }
+function fmtSize(n) {
+  if (!n && n !== 0) return "—";
+  var u = ["B","KB","MB","GB","TB"], i = 0, x = n;
+  while (x >= 1024 && i < u.length-1) { x /= 1024; i++; }
+  return (x < 10 && i > 0 ? x.toFixed(2) : x.toFixed(1)) + " " + u[i];
+}
+function setPill(s) {
+  var el = $("#statePill");
+  el.className = "pill " + s;
+  el.textContent = s;
+}
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, function(c) {
+    return { "&":"&amp;", "<":"&lt;", ">":"&gt;", "\"":"&quot;", "'":"&#39;" }[c];
+  });
+}
+function logLine(m) {
+  var pre = $("#log");
+  pre.textContent += "[" + new Date().toLocaleTimeString() + "] " + m + "\n";
+  pre.scrollTop = pre.scrollHeight;
+}
+
+// ---------- 文件夹选择 ----------
+$("#folderPicker").addEventListener("change", function() {
+  STATE.files = [];
+  STATE.results = [];
+  var all = this.files || [];
+  if (!all.length) {
+    $("#pickInfo").textContent = "尚未选择文件夹。";
+    $("#convertBtn").disabled = true;
+    $("#clearBtn").disabled = true;
+    $("#filelist").style.display = "none";
+    $("#filelist").innerHTML = "";
+    return;
+  }
+  var seen = {};
+  for (var i = 0; i < all.length; i++) {
+    var f = all[i];
+    var rel = f.webkitRelativePath || f.name;
+    var lower = rel.toLowerCase();
+    if (!(lower.endsWith(".mcap") || lower.endsWith(".json"))) continue;
+    if (seen[rel]) continue;
+    seen[rel] = true;
+    STATE.files.push({ rel: rel, size: f.size, file: f });
+  }
+  // 顶层 session 数
+  var tops = {};
+  for (var j = 0; j < STATE.files.length; j++) {
+    var top = STATE.files[j].rel.split("/")[0];
+    tops[top] = (tops[top] || 0) + 1;
+  }
+  var totalSize = 0;
+  for (var k = 0; k < STATE.files.length; k++) totalSize += STATE.files[k].size;
+  $("#pickInfo").textContent = "已选 " + STATE.files.length + " 个文件，" +
+    Object.keys(tops).length + " 个 session，总 " + fmtSize(totalSize) +
+    (STATE.fsa ? " · 浏览器支持 FS-API（流式写盘）" : " · 不支持 FS-API，将用 Blob 下载");
+  $("#convertBtn").disabled = STATE.files.length === 0;
+  $("#clearBtn").disabled = false;
+  var ul = $("#filelist");
+  ul.style.display = "block";
+  var html = "";
+  var max = Math.min(STATE.files.length, 200);
+  for (var m = 0; m < max; m++) {
+    html += "<li>" + escapeHtml(STATE.files[m].rel) + "  (" + fmtSize(STATE.files[m].size) + ")</li>";
+  }
+  if (STATE.files.length > max) {
+    html += "<li>... 还有 " + (STATE.files.length - max) + " 个未列出</li>";
+  }
+  ul.innerHTML = html;
+  $("#resultBody").innerHTML = '<tr><td colspan="5" class="hint">暂无</td></tr>';
+});
+
+$("#clearBtn").addEventListener("click", function() {
+  $("#folderPicker").value = "";
+  STATE.files = [];
+  STATE.results = [];
+  $("#filelist").style.display = "none";
+  $("#filelist").innerHTML = "";
+  $("#pickInfo").textContent = "尚未选择文件夹。";
+  $("#convertBtn").disabled = true;
+  $("#clearBtn").disabled = true;
+  $("#resultBody").innerHTML = '<tr><td colspan="5" class="hint">暂无</td></tr>';
+  setPill("idle");
+});
+
+// ---------- 工具：读 mcap File → ArrayBuffer ----------
+function readFileAsArrayBuffer(file) {
+  return new Promise(function(resolve, reject) {
+    var r = new FileReader();
+    r.onload = function() { resolve(r.result); };
+    r.onerror = function() { reject(r.error || new Error("read fail")); };
+    r.readAsArrayBuffer(file);
+  });
+}
+
+// ---------- 命名 ----------
+function computeNewNameFromSessionJson(jsonText) {
+  try {
+    var info = JSON.parse(jsonText);
+    var dev = String(info.device_id || "").trim();
+    var last6 = dev.length >= 6 ? dev.slice(-6) : dev;
+    if (!last6) return null;
+    var t = Number(info.start_time_unix);
+    if (!isFinite(t)) return null;
+    var d = new Date(t * 1000);
+    var mm = String(d.getMonth() + 1).padStart(2, "0");
+    var dd = String(d.getDate()).padStart(2, "0");
+    var sessName = String(info.session_name || "").trim();
+    var m = /(\d+)$/.exec(sessName);
+    var num = m ? m[1] : "00000";
+    return mm + dd + "-" + last6 + "-session-" + num;
+  } catch (e) { return null; }
+}
+
+function sessionDirToDisplayName(sessDir) {
+  // sessDir like "sample_session_00000" or already "0104-4d94ca-session-00000"
+  return sessDir;
+}
+
+// ---------- 主流程 ----------
+$("#convertBtn").addEventListener("click", async function() {
+  $("#convertBtn").disabled = true;
+  setPill("running");
+  $("#log").textContent = "";
+  STATE.results = [];
+  $("#resultBody").innerHTML = '<tr><td colspan="5" class="hint">处理中…</td></tr>';
+
+  // 1) 按 session 分组文件
+  var bySession = {};
+  for (var i = 0; i < STATE.files.length; i++) {
+    var rel = STATE.files[i].rel;
+    var parts = rel.split("/");
+    if (parts.length < 2) continue;          // 跳过顶级
+    var sess = parts[0];
+    if (!bySession[sess]) bySession[sess] = [];
+    bySession[sess].push({ name: parts[parts.length - 1], rel: rel, file: STATE.files[i].file });
+  }
+  var sessNames = Object.keys(bySession).sort();
+  var total = sessNames.length;
+  $("#progText").textContent = "0 / " + total;
+  logLine("发现 " + total + " 个 session");
+  var done = 0, failed = 0;
+
+  for (var s = 0; s < sessNames.length; s++) {
+    var sessName = sessNames[s];
+    $("#curName").textContent = sessName;
+    logLine("处理: " + sessName);
+    try {
+      // 1.1) 读 session.json 算新名
+      var newName = sessName;
+      var sjson = bySession[sessName].filter(function(f){ return f.name === "session.json"; })[0];
+      if (sjson) {
+        var text = await sjson.file.text();
+        var computed = computeNewNameFromSessionJson(text);
+        if (computed) newName = computed;
+      } else {
+        logLine("  - 缺 session.json，用原名");
+      }
+
+      // 1.2) 解析 mcap（按 ego_0000 / ego_0001 顺序）
+      var mcapList = bySession[sessName]
+        .filter(function(f){ return f.name.toLowerCase().endsWith(".mcap"); })
+        .sort(function(a, b){ return a.name.length - b.name.length || (a.name < b.name ? -1 : 1); });
+      if (!mcapList.length) {
+        logLine("  [跳过] " + sessName + ": 无 .mcap");
+        STATE.results.push({ name: newName, status: "skipped", error: "无 .mcap" });
+        failed++;
+        done++;
+        $("#progText").textContent = done + " / " + total + " (跳过)";
+        continue;
+      }
+
+      // 1.3) 合并帧
+      var allFrames = [];
+      var cfg = null;
+      for (var k = 0; k < mcapList.length; k++) {
+        var buf = await readFileAsArrayBuffer(mcapList[k].file);
+        var parsed = window.mcap2mp4Core.parseMcap(new Uint8Array(buf));
+        var cam = parsed.frames.get("/ego/camera/0");
+        if (!cam || !cam.length) {
+          logLine("  [跳过] " + mcapList[k].name + ": 无 camera/0");
+          continue;
+        }
+        for (var j = 0; j < cam.length; j++) allFrames.push(cam[j]);
+        if (!cfg) {
+          cfg = window.mcap2mp4Core.scanHevcVpsSpsPps(cam);
+        }
+      }
+      if (!allFrames.length) {
+        logLine("  [跳过] " + sessName + ": 无 camera/0 帧");
+        STATE.results.push({ name: newName, status: "skipped", error: "无 camera/0" });
+        failed++; done++;
+        $("#progText").textContent = done + " / " + total;
+        continue;
+      }
+      if (!cfg) {
+        logLine("  [错误] " + sessName + ": 找不到 VPS/SPS/PPS");
+        STATE.results.push({ name: newName, status: "error", error: "no VPS/SPS/PPS" });
+        failed++; done++;
+        continue;
+      }
+
+      // 1.4) 按 capture_ns 排序
+      allFrames.sort(function(a, b){ return a.capture_ns - b.capture_ns; });
+
+      // 1.5) 拿宽高 (hvc1 sample entry 需要)
+      var width = 1920, height = 1080;  // 从 SPS 解出来更稳，先用默认
+
+      // 1.6) 构造 hvcC + 封装 MP4
+      var hvcC = window.mcap2mp4Core.buildHevcHvcC(
+        new Uint8Array(cfg.vps), new Uint8Array(cfg.sps), new Uint8Array(cfg.pps));
+      logLine("  - 帧 " + allFrames.length + ", hvcC " + hvcC.length + " bytes");
+      var mp4 = window.mcap2mp4Core.muxMp4({
+        frames: allFrames,
+        hvcC: hvcC,
+        width: width,
+        height: height,
+        onProgress: function(){ /* could stream progress */ },
+      });
+      logLine("  [完成] " + newName + " -> " + mp4.length + " bytes");
+
+      // 1.7) 提供下载 / 写到本地文件
+      var blob = new Blob([mp4], { type: "video/mp4" });
+      var url = URL.createObjectURL(blob);
+      STATE.results.push({ name: newName + ".mp4", size: mp4.length,
+                           frameCount: allFrames.length, status: "ok", url: url, blob: blob });
+      done++;
+    } catch (e) {
+      logLine("  [错误] " + sessName + ": " + (e && e.message || e));
+      STATE.results.push({ name: sessName, status: "error", error: String(e && e.message || e) });
+      failed++;
+      done++;
+    }
+    var pct = total ? Math.round(done / total * 100) : 0;
+    $("#progBar").firstElementChild.style.width = pct + "%";
+    $("#progText").textContent = done + " / " + total + "（成功 " + (done - failed) + "，失败/跳过 " + failed + "）";
+  }
+
+  $("#curName").textContent = "—";
+  $("#curHint").textContent = "完成";
+  setPill("done");
+  $("#convertBtn").disabled = false;
+
+  // 渲染结果
+  var rows = [];
+  for (var r = 0; r < STATE.results.length; r++) {
+    var it = STATE.results[r];
+    var szCell = it.size ? fmtSize(it.size) : "—";
+    var fcCell = it.frameCount ? it.frameCount : "—";
+    var extra = it.error ? (' <span class="hint">' + escapeHtml(it.error) + '</span>') : '';
+    var ops = '';
+    if (it.status === "ok" && it.url) {
+      ops = '<a class="btn-link" href="' + it.url + '" download="' + escapeHtml(it.name) + '">下载</a>';
+    }
+    rows.push("<tr>"
+      + '<td class="name">' + escapeHtml(it.name) + "</td>"
+      + "<td>" + szCell + "</td>"
+      + "<td>" + fcCell + "</td>"
+      + '<td><span class="badge ' + it.status + '">' + it.status + "</span>" + extra + "</td>"
+      + "<td>" + ops + "</td>"
+      + "</tr>");
+  }
+  $("#resultBody").innerHTML = rows.length
+    ? rows.join("")
+    : '<tr><td colspan="5" class="hint">暂无</td></tr>';
+});
+</script>
+</body>
+</html>

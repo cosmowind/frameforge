@@ -1,0 +1,111 @@
+# wcs-manifest.yaml — WCS v2.0 中央索引（plan2）
+# 此文件是文档清单与加载策略的事实来源；改动 docs/* 必须同步更新此文件
+project:
+  name: ff
+  version: 0.2.0
+  type: monorepo
+  description: FrameForge — 视频录入员 SOP 工具（plan2：Next.js 15 + Clerk + Docker Compose + 4 设备适配）
+  started: 2026-07-11
+  parent_plan: ~/
+  archived_v1: ../../../ff-v1-archive/
+
+agents:
+  on_resume:
+    - wcs-manifest.yaml
+    - docs/project_status.md
+  on_task_planning:
+    - docs/dev_plan.md
+    - docs/features.md
+    - docs/data-dictionary.md
+  on_code_review:
+    - docs/CODING_STANDARDS.md
+    - docs/workflow.md
+  on_bug_investigation:
+    - docs/error_book.md
+    - docs/dev_log.md
+  on_storage_decisions:
+    - docs/storage-architecture.md
+  on_device_adapter:
+    - docs/device-adapters.md
+
+doc_index:
+  project_status: docs/project_status.md
+  structure: docs/structure.md
+  dev_plan: docs/dev_plan.md
+  dev_log: docs/dev_log.md
+  error_book: docs/error_book.md
+  features: docs/features.md
+  coding_standards: docs/CODING_STANDARDS.md
+  workflow: docs/workflow.md
+  prompt: docs/prompt.txt
+  data_dictionary: docs/data-dictionary.md
+  storage_architecture: docs/storage-architecture.md
+  device_adapters: docs/device-adapters.md
+  v2_forms_spec: docs/v2-forms-spec.md  # v2 表单结构事实层（单一来源；2026-07-15 新增）
+  deploy_production: docs/deploy-production.md  # 生产部署手册（OpenCloudOS 9 + 宝塔 + pm2；2026-07-15 新增）
+  deploy_checklist: docs/DEPLOY-CHECKLIST.md  # 部署逐步执行清单（用户实操；2026-07-15 新增）
+
+conventions:
+  schema_source_of_truth: packages/shared/src/schemas
+  data_source_of_truth: PG (schema ff, tables ff_*)
+  cache_layer: Redis 7
+  job_queue: BullMQ + Redis Streams
+  monorepo_tool: pnpm workspaces
+  web_apps: Next.js 15 (App Router) × 2
+  auth: Clerk SaaS (Phase 0 占位)
+  storage: COS + L2 本地硬盘 + L3 夸克网盘
+
+hard_constraints:
+  data:
+    - D1: PG single source of truth
+    - D2: business_key UNIQUE
+    - D3: dimension table single writer
+    - D4: write-time version conflict detection
+    - D5: scan_date never decrease (DB trigger)
+    - D6: file_hash UNIQUE
+    - D7: FK referential integrity
+    - D8: pg_dump daily
+    - D9: utf-8 only
+    - D10: device_type_id NOT NULL (4 设备适配基础)
+  frontend:
+    - F1: shared Zod schema front+back
+    - F2: cn/en selector compatibility (Phase 1+)
+    - F3: no single-quote multiline JS
+    - F4: localStorage 预填表单 (Phase 1 必做)
+    - F5: multi-signal readiness check
+    - F6: in-place field validation with real reason
+  backend:
+    - B1: every fetch returns JSON (no HTML 500)
+    - B2: Zod 解析 + 422 + details.flatten
+  deploy:
+    - P1: no-cache + asset version + console build tag
+    - P2: restart-safe (SIGTERM handler)
+    - P3: path normalization (forward slash)
+    - P4: route registration unique
+    - P5: package excludes runtime artifacts
+    - P6: no secrets in repo (.env git ignored)
+    - P7: Docker Compose 必用（含 mem_limit + cpus）
+  flow:
+    - L1: single script --stage; debug artifacts in .debug/
+    - L2: batch must continue on single failure
+    - L3: every incident -> error_book + dev_log
+  business:
+    - B1: diversity quota validation built-in
+    - B2: operator_x_task_x_env quota cap
+  storage:
+    - S1: 3-tier storage (COS + Local + Quark)
+    - S2: SCF cross-bucket trigger (event-driven)
+    - S3: COS lifecycle auto-transition (30/90/180d)
+    - S4: TLS + URL expiration 600s for client COS access
+
+tech_stack_decisions:
+  - D1: Next.js 15 (App Router + Turbopack)
+  - D2: Clerk (SaaS, Phase 4 可自托管)
+  - D3: Docker Compose (含 mem_limit + cpus + named volumes)
+  - D4: PostgreSQL 16 + Drizzle ORM 0.31
+  - D5: 腾讯云 COS + SCF + CDN
+  - D6: BullMQ 任务队列
+  - D7: ff_ 表前缀
+  - D8: Zod schema 前后端共享
+  - D9: pnpm workspace + pnpm 10.x
+  - D10: DeviceAdapter 插件架构

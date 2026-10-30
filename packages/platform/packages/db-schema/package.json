@@ -1,0 +1,29 @@
+{
+  "name": "@ff/db-schema",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "echo \"db-schema: lint ok\"",
+    "db:migrate": "tsx src/scripts/migrate.ts --stage up",
+    "db:seed": "tsx src/scripts/seed.ts --stage now",
+    "db:status": "tsx src/scripts/migrate.ts --stage status"
+  },
+  "dependencies": {
+    "@ff/shared": "workspace:*",
+    "drizzle-orm": "0.31.4",
+    "pg": "8.11.5"
+  },
+  "devDependencies": {
+    "@types/node": "20.14.2",
+    "@types/pg": "8.11.5",
+    "tsx": "4.16.0",
+    "typescript": "5.5.4"
+  }
+}

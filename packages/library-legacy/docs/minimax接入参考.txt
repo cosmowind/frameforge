@@ -1,0 +1,51 @@
+# 此文件已废弃
+
+AI 翻译功能（基于 MiniMax M2.7）已从项目中移除。
+替代方案是基于 CSV 已有数据的"中英自动补全"功能，
+详见 README.md 的"中英自动补全"小节。
+
+---
+
+## 历史参考（仅供查阅，已不再使用）
+
+### Anthropic 兼容 API 调用格式
+
+```
+POST https://api.minimaxi.com/anthropic/v1/messages
+Headers:
+  x-api-key: <Token Plan Key>
+  anthropic-version: 2023-06-01
+  Content-Type: application/json
+
+Body:
+{
+  "model": "MiniMax-M2.7",
+  "max_tokens": 1024,
+  "system": "...",
+  "messages": [
+    {"role": "user", "content": "..."}
+  ]
+}
+
+Response:
+{
+  "content": [
+    {"type": "text", "text": "..."}
+  ]
+}
+```
+
+### 客户端（Anthropic SDK）
+
+```python
+import anthropic
+client = anthropic.Anthropic()
+message = client.messages.create(
+    model="MiniMax-M2.7",
+    max_tokens=1000,
+    system="You are a helpful assistant.",
+    messages=[{"role": "user", "content": "Hi"}]
+)
+```
+
+> 历史提示：原项目曾把 `x-api-key` 硬编码在 `config.json` 中，已因安全原因移除并取消该功能。

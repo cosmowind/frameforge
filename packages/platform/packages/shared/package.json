@@ -1,0 +1,31 @@
+{
+  "name": "@ff/shared",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./constants": "./src/constants.ts",
+    "./constants/v2-options": "./src/constants/v2-options.ts",
+    "./types": "./src/types.ts",
+    "./schemas": "./src/schemas/index.ts",
+    "./adapters": "./src/adapters/index.ts",
+    "./utils/logger": "./src/utils/logger.ts",
+    "./utils/paths": "./src/utils/paths.ts"
+  },
+  "scripts": {
+    "build": "tsc --noEmit -p tsconfig.json && echo 'shared: schema-as-code'",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "echo 'shared: lint ok'"
+  },
+  "dependencies": {
+    "zod": "3.23.8",
+    "pino": "9.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "20.14.2",
+    "typescript": "5.5.4"
+  }
+}

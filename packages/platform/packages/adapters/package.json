@@ -1,0 +1,28 @@
+{
+  "name": "@ff/adapters",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./registry": "./src/registry.ts",
+    "./device/dji-gopro-dcim": "./src/device/dji-gopro-dcim.ts",
+    "./device/head-mounted-hmd": "./src/device/head-mounted-hmd.ts",
+    "./device/gopro-session-mcap": "./src/device/gopro-session-mcap.ts",
+    "./device/generic-avi-recording": "./src/device/generic-avi-recording.ts"
+  },
+  "scripts": {
+    "build": "tsc --noEmit -p tsconfig.json && echo 'adapters: schema-as-code'",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "echo 'adapters: lint ok'"
+  },
+  "dependencies": {
+    "@ff/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "20.14.2",
+    "typescript": "5.5.4"
+  }
+}

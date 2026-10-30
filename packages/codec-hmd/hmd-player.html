@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<title>HMD 播放器</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { font: 14px/1.5 system-ui, "Microsoft YaHei", sans-serif;
+         margin: 0; background: #0e1116; color: #e6e6e6;
+         min-height: 100vh; display: flex; flex-direction: column; }
+  header { padding: 10px 18px; background: #161b22; border-bottom: 1px solid #2a3138;
+           display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+  h1 { font-size: 14px; margin: 0; font-weight: 500; }
+  .badge { background: #2a3138; color: #9aa4ad; padding: 2px 8px; border-radius: 3px; font-size: 11px; }
+  .hud { font-size: 11px; color: #6e7681; margin-left: auto; font-family: ui-monospace, monospace; }
+
+  /* Empty state */
+  .drop { flex: 1; display: flex; align-items: center; justify-content: center;
+          margin: 20px; border: 2px dashed #2a3138; border-radius: 12px;
+          color: #6e7681; transition: all 0.15s; min-height: 280px; }
+  .drop.over { border-color: #1f6feb; background: #0d1117; color: #e6e6e6; }
+  .drop-inner { text-align: center; padding: 24px; }
+  .drop h2 { font-size: 22px; margin: 0 0 8px; font-weight: 400; }
+  .drop p { margin: 4px 0; font-size: 13px; }
+  .drop button { margin-top: 16px; background: #1f6feb; color: #fff; border: 0;
+                 padding: 9px 22px; border-radius: 6px; font-size: 14px; cursor: pointer; }
+
+  /* Player */
+  main { flex: 1; display: none; flex-direction: column; padding: 10px; gap: 8px; min-height: 0; }
+  main.on { display: flex; }
+  .drop.hide { display: none; }
+
+  video { width: 100%; max-height: calc(100vh - 100px); background: #000;
+          border-radius: 6px; display: block; outline: none; }
+
+  .status { display: flex; gap: 14px; align-items: center; padding: 4px 10px;
+            background: #161b22; border: 1px solid #2a3138; border-radius: 6px; font-size: 12px; }
+  .status .progress { flex: 1; height: 8px; background: #21262d; border-radius: 4px;
+                      overflow: hidden; position: relative; }
+  .status .progress > div { height: 100%; background: #1f6feb; transition: width 0.1s; }
+  .status .label { color: #9aa4ad; min-width: 80px; }
+  .status button { background: #21262d; color: #e6e6e6; border: 1px solid #2a3138;
+                   padding: 4px 10px; border-radius: 4px; font-size: 12px; cursor: pointer; }
+  .status button:hover { background: #2a3138; }
+
+  .err { background: #3a1f1f; border: 1px solid #f85149; padding: 10px 14px;
+         border-radius: 6px; color: #ffa198; font-size: 13px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>HMD 播放器</h1>
+  <span class="badge">不修改原文件 · 不写中间文件</span>
+  <span class="hud" id="hud"></span>
+</header>
+
+<div class="drop" id="drop">
+  <div class="drop-inner">
+    <h2>拖一个 .hmd 文件到这里</h2>
+    <p>或</p>
+    <button id="pickBtn">选择文件</button>
+    <input id="fileIn" type="file" accept=".hmd" style="display:none" />
+    <p style="margin-top:18px;font-size:12px">
+      浏览器内封装为 MP4 Blob · 原生 &lt;video&gt; 播放 · 双击 HTML 即用
+    </p>
+  </div>
+</div>
+
+<main id="player">
+  <video id="video" controls preload="auto"></video>
+  <div class="status" id="status">
+    <span class="label" id="statusLabel">准备就绪</span>
+    <div class="progress"><div id="bar" style="width:0%"></div></div>
+    <span class="hud" id="statusHud"></span>
+    <button id="newBtn" style="display:none">📂 换文件</button>
+  </div>
+  <div id="err"></div>
+</main>
+
+<script type="module">
+import { Muxer, ArrayBufferTarget } from 'https://cdn.jsdelivr.net/npm/mp4-muxer@5.1.5/+esm';
+
+// =====================================================================
+// INLINED HMD PARSER
+// =====================================================================
+const MAGIC = [0x55, 0x4d, 0x49, 0x33];
+const IMU_TYPE = 0x59;
+const SIZE_FIELD_BIAS = 8;
+const COMMON_HEADER_LEN = 24;
+
+function findPackets(buf) {
+  const out = []; let p = 0;
+  const dv = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+  while (p + 8 <= buf.length) {
+    if (buf[p] === MAGIC[0] && buf[p+1] === MAGIC[1] && buf[p+2] === MAGIC[2] && buf[p+3] === MAGIC[3]) {
+      const sizeField = dv.getUint32(p + 4, true);
+      const total = sizeField + SIZE_FIELD_BIAS;
+      if (total < 16 || total > 16 * 1024 * 1024) { p++; continue; }
+      if (p + total > buf.length) { p++; continue; }
+      out.push({ offset: p, type: buf[p + 4], size: sizeField, total });
+      p += total;
+    } else p++;
+  }
+  return out;
+}
+
+async function parseUmi(buf, onProgress) {
+  onProgress = onProgress || (() => {});
+  const packets = findPackets(buf);
+  const nals = [];
+  let vps = null, sps = null, pps = null;
+  let imu = 0, video = 0, skipped = 0;
+  for (let i = 0; i < packets.length; i++) {
+    if ((i & 0x3fff) === 0) await new Promise(r => setTimeout(r, 0));
+    if ((i & 0xfff) === 0) onProgress(i / packets.length * 0.3);
+    const pkt = packets[i];
+    const p = pkt.offset, type = pkt.type, pktEnd = p + pkt.total;
+    if (type === IMU_TYPE && pkt.total === 97) { imu++; continue; }
+    let payloadStart = -1;
+    const scanEnd = Math.min(p + COMMON_HEADER_LEN + 32, pktEnd - 3);
+    for (let k = p + COMMON_HEADER_LEN; k < scanEnd; k++) {
+      if (buf[k] === 0 && buf[k+1] === 0 && buf[k+2] === 0 && buf[k+3] === 1) { payloadStart = k; break; }
+    }
+    if (payloadStart < 0) { skipped++; continue; }
+    let scan = payloadStart;
+    while (scan < pktEnd - 4) {
+      if (buf[scan] === 0 && buf[scan+1] === 0 && buf[scan+2] === 0 && buf[scan+3] === 1) {
+        let nextNal = scan + 4;
+        while (nextNal < pktEnd - 4) {
+          if (buf[nextNal] === 0 && buf[nextNal+1] === 0 && buf[nextNal+2] === 0 && buf[nextNal+3] === 1) break;
+          nextNal++;
+        }
+        const nt = (buf[scan + 4] >> 1) & 0x3f;
+        if (nt === 32 && !vps) vps = buf.subarray(scan, nextNal);
+        else if (nt === 33 && !sps) sps = buf.subarray(scan, nextNal);
+        else if (nt === 34 && !pps) pps = buf.subarray(scan, nextNal);
+        nals.push({ nalType: nt, start: scan, end: nextNal });
+        scan = nextNal;
+      } else scan++;
+    }
+    video++;
+  }
+  return { nals, vps, sps, pps, imu, video, skipped };
+}
+
+// =====================================================================
+// HEVC helpers
+// =====================================================================
+function stripStartCode(nal) {
+  return nal[0]===0&&nal[1]===0&&nal[2]===0&&nal[3]===1 ? nal.subarray(4) : nal;
+}
+function concatBytes(arrs) {
+  let t = 0; for (const a of arrs) t += a.length;
+  const o = new Uint8Array(t); let p = 0;
+  for (const a of arrs) { o.set(a, p); p += a.length; }
+  return o;
+}
+
+/**
+ * Build a proper HEVCDecoderConfigurationRecord (hvcC) from VPS/SPS/PPS
+ * NALs in Annex-B format. mp4-muxer wraps this verbatim in the hvcC box.
+ *
+ *   [0]     configurationVersion = 1
+ *   [1]     profile_space(2)|tier(1)|profile_idc(5)
+ *   [2..5]  profile_compat_flags (4B)
+ *   [6..11] constraint_indicator_flags (6B)
+ *   [12]    general_level_idc
+ *   [13..21] segmentation/parallelism/chroma/depth/avgFrameRate/flags
+ *   [22]    numOfArrays
+ *   then for each array: type(1B) + numNalus(2B) + [len(2B)+nal]×N
+ */
+function buildHevcDescription(vpsNal, spsNal, ppsNal) {
+  const vpsBody = stripStartCode(vpsNal);
+  const spsBody = stripStartCode(spsNal);
+  const ppsBody = stripStartCode(ppsNal);
+  // spsBody layout (after stripping start code; the 2B NAL header
+  // is at spsBody[0..1], so SPS content starts at spsBody[2]):
+  //   [2]  sps_vps_id(4)|max_sub_layers(3)|temporal_nesting(1)
+  //   [3]  profile_space(2)|tier(1)|profile_idc(5)
+  //   [4..7]  profile_compat (4B)
+  //   [8..13] constraint (6B; top 4 bits of byte 0 are standard flags)
+  //   [14] general_level_idc
+  const profile_space = (spsBody[3] >> 6) & 0x03;
+  const tier_flag = (spsBody[3] >> 5) & 0x01;
+  const profile_idc = spsBody[3] & 0x1f;
+  const profile_compat = spsBody.subarray(4, 8);
+  const constraint = new Uint8Array(6);
+  constraint[0] = spsBody[8] & 0xf0;
+  let level_idc = spsBody[14];
+  if (level_idc === 0) level_idc = 120;  // Galaxea HMD encoder leaves it 0
+
+  const out = [];
+  out.push(new Uint8Array([1]));
+  out.push(new Uint8Array([(profile_space << 6) | (tier_flag << 5) | profile_idc]));
+  out.push(profile_compat);
+  out.push(constraint);
+  out.push(new Uint8Array([level_idc]));
+  out.push(new Uint8Array([0xf0, 0x00]));  // min_spatial_segmentation_idc
+  out.push(new Uint8Array([0xfc]));         // parallelismType
+  out.push(new Uint8Array([0xfd]));         // chromaFormat = 4:2:0
+  out.push(new Uint8Array([0xf8]));         // bitDepthLumaMinus8
+  out.push(new Uint8Array([0xf8]));         // bitDepthChromaMinus8
+  out.push(new Uint8Array([0, 0]));         // avgFrameRate
+  out.push(new Uint8Array([0x0f]));         // misc flags; lengthSizeMinusOne=3
+  out.push(new Uint8Array([3]));            // numOfArrays: VPS + SPS + PPS
+  for (const [type, body] of [[0x20, vpsBody], [0x21, spsBody], [0x22, ppsBody]]) {
+    out.push(new Uint8Array([type]));
+    out.push(new Uint8Array([0, 1]));
+    out.push(new Uint8Array([(body.length >> 8) & 0xff, body.length & 0xff]));
+    out.push(body);
+  }
+  return concatBytes(out);
+}
+
+// =====================================================================
+// Mux HEVC → MP4 (in memory, no file output)
+// =====================================================================
+async function muxerToMp4(parsed, onProgress) {
+  onProgress = onProgress || (() => {});
+  if (!parsed.vps || !parsed.sps || !parsed.pps) throw new Error('缺 VPS/SPS/PPS');
+
+  // Build a proper HEVCDecoderConfigurationRecord (hvcC) — this is what
+  // mp4-muxer wraps verbatim in the hvcC box.
+  const description = buildHevcDescription(parsed.vps, parsed.sps, parsed.pps);
+
+  const muxer = new Muxer({
+    target: new ArrayBufferTarget(),
+    video: { codec: 'hevc', width: 1920, height: 1080, frameRate: 30, description },
+    fastStart: 'in-memory',
+  });
+
+  // Dedup param sets: keep first VPS+SPS+PPS, drop all later duplicates.
+  // This eliminates the "Duplicate POC" warnings and produces a clean
+  // bitstream that any conformant demuxer accepts.
+  let vpsKept = false, spsKept = false, ppsKept = false;
+  const FRAME_US = 33333;
+  const total = parsed.nals.length;
+  let pts = 0, fed = 0;
+  for (let i = 0; i < total; i++) {
+    if ((i & 0x1ff) === 0) {
+      onProgress(0.3 + (i / total) * 0.65);
+      await new Promise(r => setTimeout(r, 0));  // yield to UI
+    }
+    const n = parsed.nals[i];
+    if (n.nalType === 32) { if (vpsKept) continue; vpsKept = true; continue; }
+    if (n.nalType === 33) { if (spsKept) continue; spsKept = true; continue; }
+    if (n.nalType === 34) { if (ppsKept) continue; ppsKept = true; continue; }
+    // Slice: convert Annex-B → AVCC (4-byte length prefix replaces start code)
+    const sliceBody = _fileBuf.subarray(n.start + 4, n.end);
+    const len = new Uint8Array(4);
+    new DataView(len.buffer).setUint32(0, sliceBody.length, false);
+    const avccSlice = new Uint8Array(4 + sliceBody.length);
+    avccSlice.set(len, 0); avccSlice.set(sliceBody, 4);
+    const isKey = n.nalType === 19 || n.nalType === 20;
+    // mp4-muxer 5.1.5 API: addVideoChunkRaw(data, type, timestamp?, duration?)
+    muxer.addVideoChunkRaw(avccSlice, isKey ? 'key' : 'delta', pts, FRAME_US);
+    pts += FRAME_US;
+    fed++;
+  }
+  onProgress(0.97);
+  muxer.finalize();
+  onProgress(1);
+  return new Blob([muxer.target.buffer], { type: 'video/mp4' });
+}
+
+// =====================================================================
+// UI
+// =====================================================================
+let _fileBuf = null;
+const $ = id => document.getElementById(id);
+const drop = $('drop'), player = $('player');
+const video = $('video');
+const fileIn = $('fileIn');
+const bar = $('bar');
+const statusLabel = $('statusLabel');
+const statusHud = $('statusHud');
+const errBox = $('err');
+
+$('pickBtn').addEventListener('click', () => fileIn.click());
+$('newBtn').addEventListener('click', () => { reset(); fileIn.click(); });
+fileIn.addEventListener('change', e => { if (e.target.files[0]) load(e.target.files[0]); });
+
+['dragenter','dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
+['dragleave','drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
+drop.addEventListener('drop', e => { e.preventDefault(); if (e.dataTransfer.files[0]) load(e.dataTransfer.files[0]); });
+document.addEventListener('dragover', e => e.preventDefault());
+document.addEventListener('drop', e => { e.preventDefault(); if (e.dataTransfer.files[0]) load(e.dataTransfer.files[0]); });
+
+async function load(file) {
+  if (!file.name.toLowerCase().endsWith('.hmd')) { showErr('请选择 .hmd 文件'); return; }
+  reset();
+  errBox.innerHTML = '';
+  $('hud').textContent = `${file.name} (${(file.size/1024/1024).toFixed(1)} MB)`;
+  drop.classList.add('hide');
+  player.classList.add('on');
+
+  try {
+    const t0 = performance.now();
+    _fileBuf = new Uint8Array(await file.arrayBuffer());
+    setStatus('解析容器…', 0);
+    const parsed = await parseUmi(_fileBuf, p => setStatus('解析容器…', p));
+    console.log('parsed:', { packets: parsed.nals.length, vps: !!parsed.vps, sps: !!parsed.sps, pps: !!parsed.pps, imu: parsed.imu, video: parsed.video });
+    $('hud').textContent = `${file.name} · ${(_fileBuf.length/1024/1024).toFixed(0)} MB · ${parsed.video} 视频包 · ${parsed.imu} IMU · 解析 ${(performance.now()-t0).toFixed(0)} ms`;
+    if (parsed.skipped) $('hud').textContent += ` · 跳过 ${parsed.skipped}`;
+
+    setStatus('封装 MP4…', 0.3);
+    const t1 = performance.now();
+    const blob = await muxerToMp4(parsed, p => setStatus('封装 MP4…', p));
+    const muxerMs = (performance.now() - t1).toFixed(0);
+    console.log(`muxer: ${(blob.size/1024/1024).toFixed(1)} MB in ${muxerMs} ms`);
+    setStatus('加载播放器…', 1);
+    const url = URL.createObjectURL(blob);
+    video.src = url;
+    await new Promise(res => video.addEventListener('loadedmetadata', res, { once: true }));
+    video.play().catch(() => {});  // autoplay may be blocked; user can click
+    $('newBtn').style.display = 'inline-block';
+    statusLabel.textContent = '就绪';
+    statusHud.textContent = `${video.duration.toFixed(1)}s · ${(blob.size/1024/1024).toFixed(0)} MB · 封装 ${muxerMs} ms`;
+  } catch (e) {
+    console.error(e);
+    showErr('处理失败: ' + e.message + '。可能原因：(1) .hmd 不是 HEVC 录像；(2) 浏览器不支持 HEVC（用 Chrome 94+ / Edge 88+）。');
+    reset();
+  }
+}
+
+function setStatus(label, frac) {
+  statusLabel.textContent = label;
+  bar.style.width = (frac * 100).toFixed(0) + '%';
+}
+function showErr(msg) { errBox.innerHTML = `<div class="err">${msg}</div>`; }
+function reset() {
+  if (video.src) { try { URL.revokeObjectURL(video.src); } catch {} }
+  video.removeAttribute('src');
+  video.load();
+  $('newBtn').style.display = 'none';
+  setStatus('准备就绪', 0);
+  statusHud.textContent = '';
+  _fileBuf = null;
+  drop.classList.remove('hide');
+  player.classList.remove('on');
+  $('hud').textContent = '';
+  errBox.innerHTML = '';
+}
+
+// Keyboard shortcuts on the video element
+video.addEventListener('keydown', e => {
+  if (e.key === ' ' || e.key === 'k') { e.preventDefault(); video.paused ? video.play() : video.pause(); }
+  else if (e.key === 'ArrowLeft')  { video.currentTime = Math.max(0, video.currentTime - 5); }
+  else if (e.key === 'ArrowRight') { video.currentTime = Math.min(video.duration, video.currentTime + 5); }
+  else if (e.key === 'j') { video.currentTime = Math.max(0, video.currentTime - 10); }
+  else if (e.key === 'l') { video.currentTime = Math.min(video.duration, video.currentTime + 10); }
+  else if (e.key === 'f') { video.requestFullscreen?.(); }
+});
+</script>
+</body>
+</html>
