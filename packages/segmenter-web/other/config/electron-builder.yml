@@ -1,0 +1,32 @@
+appId: com.video.segmentation.tool
+productName: 视频分割工具
+directories:
+  output: release
+files:
+  - dist/**/*
+  - node_modules/**/*
+  - package.json
+asarUnpack:
+  - node_modules/@ffmpeg-installer/**/*
+  - node_modules/@ffprobe-installer/**/*
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: build/icon.ico
+  signAndEditExecutable: false
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: 视频分割工具
+mac:
+  target:
+    - dmg
+  icon: build/icon.icns
+linux:
+  target:
+    - AppImage
+  icon: build/icon.png
