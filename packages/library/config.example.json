@@ -1,0 +1,17 @@
+{
+  "scanDirectory": "/path/to/your/clips",
+  "deviceMonitor": {
+    "enabled": false,
+    "destinationBase": "/path/to/your/clips",
+    "excludeDrives": ["C", "D", "c", "d"],
+    "scanInterval": 60,
+    "deleteAfterCopy": false,
+    "videoPatterns": ["DCIM", "MP_ROOT", "PRIVATE"],
+    "subdirPatterns": ["DJI_001", "DJI_002", "DJI_003",
+                       "DJI001", "DJI002", "DJI003",
+                       "100GOPRO", "GOPRO", ""],
+    "hmdPatterns": ["hmd"],
+    "dataPatterns": ["data"]
+  },
+  "sortStack": []
+}

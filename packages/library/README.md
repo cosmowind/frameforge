@@ -135,9 +135,11 @@
 # 1. 装依赖
 pip install -r requirements.txt
 
-# 2. 编辑 config.json
+# 2. 准备 config.json（示例文件已随仓库提供）
+cp config.example.json runtime/data/config.json
 #    - scanDirectory: 你本地视频根目录
 #    - deviceMonitor.destinationBase: 复制目标根目录
+#    - deviceMonitor.enabled: false = 只跑网页部分，不扫描也不改动真实素材
 
 # 3. 启动（同时拉起 Web + 设备监控线程）
 python src/run.py
@@ -290,7 +292,7 @@ video-sort-package/
     "hmdPatterns":   ["hmd"],                  // HMD 双目设备目录名模式
     "dataPatterns":  ["data"]                  // Data 数据设备目录名模式
   },
-  "fieldnames": [...],       // 13 个字段键
+  "fieldnames": [...],       // 14 个字段键；留空则用代码内置的默认顺序
   "columnLabels": {...},     // 中文标签
   "columnVisibility": {...}, // 默认显示哪些
   "columnTypes":    {...},   // 每列的输入类型
@@ -304,6 +306,17 @@ video-sort-package/
 
 **配置说明**：
 
+> ⚠️ **复制后默认会删除源文件**。设备监控把 session 复制到 `destinationBase`
+> 之后，会把 SD 卡上的源目录删掉（腾卡空间）。不想要这个行为请显式设置
+> `"deleteAfterCopy": false`——这一项**必须写进 `config.json`**才会生效。
+> 刚上手时建议同时把 `"enabled": false`，只跑网页部分，不动真实素材。
+
+- `deviceMonitor.enabled`：设备监控总开关（默认 `true`）；设为 `false` 则只启动网页，不扫描任何磁盘
+- `deviceMonitor.destinationBase`：自动复制的目标根目录；不写则跟随顶层的 `scanDirectory`
+- `deviceMonitor.deleteAfterCopy`：复制后是否清空源（默认 `true`，见上方警告）
+- `deviceMonitor.excludeDrives`：不扫描这些盘符（默认 `["C","D","c","d"]`）
+- `deviceMonitor.scanInterval`：扫描间隔秒数（默认 `60`）
+- `deviceMonitor.videoPatterns` / `subdirPatterns`：卡上素材目录的匹配规则
 - `deviceMonitor.hmdPatterns`：指定 SD 卡上 HMD 双目设备的目录名（默认 `["hmd"]`）
 - `deviceMonitor.dataPatterns`：指定 SD 卡上 Data 数据设备的目录名（默认 `["data"]`）
 - HMD 和 Data 的 session 会自动添加 **6位设备ID前缀**（如 `4aa45c_session_00000`）

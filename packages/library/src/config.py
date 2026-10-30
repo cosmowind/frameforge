@@ -221,8 +221,13 @@ DEFAULT_SIZE_MB_PER_MIN = 45.74  # 根据现有 HMD session 数据分析的中�
 # ── 启动预热标志文件 ──
 _startup_warm_flag = os.path.join(RUNTIME_DIR, ".startup_warm_done")
 
-# ── 确保缩略图目录存在（import 时执行一次） ──
+# ── 确保运行时目录存在（import 时执行一次） ──
+# runtime/ 是 gitignore 的，新克隆的仓库里并不存在；设备监控在 import 时就会
+# 打开 runtime/logs/device_monitor.log，CSV 也会写到 runtime/data/，
+# 目录不在就直接 FileNotFoundError 起不来。
 os.makedirs(THUMBNAILS_DIR, exist_ok=True)
+for _sub in ("logs", "data", "csv_backups"):
+    os.makedirs(os.path.join(RUNTIME_DIR, _sub), exist_ok=True)
 
 # ── __all__ 用于 from config import * ──
 __all__ = [

@@ -70,8 +70,16 @@ pip install -r requirements.txt
 python src/run.py            # → http://localhost:5000
 ```
 
-Point `config.json` at a directory of clips; the app scans it, renders a table, and
-lets you tag each row, preview it inline, and export the result as TXT or CSV.
+Copy the shipped example config and point `scanDirectory` at a directory of clips:
+
+```bash
+cp config.example.json runtime/data/config.json
+```
+
+The app scans it, renders a table, and lets you tag each row, preview it inline,
+and export the result as TXT or CSV. The example starts with the device monitor
+switched off — read `packages/library/README.md` before turning it on, because it
+deletes source files from the card after copying them.
 
 ### Run the platform
 

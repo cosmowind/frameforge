@@ -47,6 +47,8 @@ else:
 
 # 默认配置
 DEFAULT_CONFIG = {
+    # 设备监控总开关；config.json 的 deviceMonitor.enabled 优先于这里的默认值
+    "enabled": True,
     "destination_base": r"/media",
     "exclude_drives": ["C", "D", "c", "d"],
     "video_patterns": ["DCIM", "MP_ROOT", "PRIVATE"],
@@ -96,8 +98,29 @@ class DeviceMonitor(DriveScannerMixin, FileCopierMixin):
                 if scan_dir and os.path.isdir(scan_dir):
                     self.config["destination_base"] = scan_dir
                     logger.info(f"已加载扫描目录: {scan_dir}")
+                # deviceMonitor sub-config.  The README documents more keys
+                # here than the monitor used to read: only hmdPatterns and
+                # dataPatterns were wired up, so everything else a user set
+                # was silently ignored.  Map the documented camelCase keys
+                # onto the internal snake_case config; absent keys keep the
+                # built-in defaults.
+                dm = cfg.get("deviceMonitor", {}) or {}
+                for _cfg_key, _internal_key in (
+                    ("excludeDrives", "exclude_drives"),
+                    ("scanInterval", "scan_interval"),
+                    ("videoPatterns", "video_patterns"),
+                    ("subdirPatterns", "subdir_patterns"),
+                ):
+                    if _cfg_key in dm:
+                        self.config[_internal_key] = dm[_cfg_key]
+                if "deleteAfterCopy" in dm:
+                    self.config["delete_after_copy"] = bool(dm["deleteAfterCopy"])
+                if "destinationBase" in dm:
+                    self.config["destination_base"] = dm["destinationBase"]
+                if "enabled" in dm:
+                    self.config["enabled"] = bool(dm["enabled"])
+
                 # Load HMD patterns from deviceMonitor config
-                dm = cfg.get("deviceMonitor", {})
                 hmd_patterns = dm.get("hmdPatterns", ["hmd"])
                 if hmd_patterns:
                     self.config["hmd_patterns"] = hmd_patterns
@@ -1253,6 +1276,9 @@ def get_monitor():
 def start_monitor():
     """启动监控"""
     monitor = get_monitor()
+    if not monitor.config.get("enabled", True):
+        logger.info("设备监控已被 config.json 的 deviceMonitor.enabled 关闭")
+        return monitor.get_status()
     if not monitor.is_running():
         monitor.start()
     return monitor.get_status()
