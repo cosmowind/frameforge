@@ -52,7 +52,7 @@ const NAV = [
   { href: '/environments', title: '拍摄环境', desc: 'CRUD + difficulty 标记' },
   { href: '/products', title: '产品 / 工序', desc: '嵌套 CRUD' },
   { href: '/users', title: '账号', desc: 'Clerk 用户同步 + app_role 分配' },
-  { href: '/regions', title: '区域', desc: '上海 / 示例省等' },
+  { href: '/regions', title: '区域', desc: '示例市 / 示例省等' },
   { href: '/audit', title: '审计日志', desc: 'who/when/source_device 追溯' },
 ]
 

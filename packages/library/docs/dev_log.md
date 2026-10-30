@@ -18,7 +18,7 @@
 
 2. **tasks 维表 `business_name` 值中文化**
    - `Domestic Sanitary` → `示例卫浴`
-   - `Nan'an Small Shop` → `南安小卖部`
+   - `示例县 Small Shop` → `示例小卖部`
    - `restaurant kitchen` → `餐厅后厨`
 
 3. **空白记录补值**
@@ -41,7 +41,7 @@
 
 **验证**：
 - 查询 `business_type` 唯一值：`['手工艺品生产', '卫浴生产', '眼镜服务', '食品加工']`
-- 查询 `business_name` 唯一值：`['南安小卖部', '示例卫浴', '餐厅后厨']`
+- 查询 `business_name` 唯一值：`['示例小卖部', '示例卫浴', '餐厅后厨']`
 - 无空白 `business_type` / `business_name` 记录
 
 **⚠️ 不要恢复的字段值**：

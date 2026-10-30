@@ -15,7 +15,7 @@ Usage:
       --dir ~/Downloads/quark_task_01 \\
       --country US \\
       --region 'California' \\
-      --recorder 'Zhuoran Guo' \\
+      --recorder 'Sample Operator' \\
       --category industrial_manufacturing \\
       --subcategory industrial_other \\
       --label 'Sort snowflake blocks' \\

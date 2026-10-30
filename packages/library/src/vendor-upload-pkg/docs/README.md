@@ -61,7 +61,7 @@ python3 upload_pkg.py \
     --scenario "D01-S01-C01-T01" \
     --task-description "Sort snowflake blocks" \
     --environment-description "Factory floor, daylight" \
-    --operator-name "Zhuoran Guo" \
+    --operator-name "Sample Operator" \
     --capture-mode stereo \
     --session-dir ./captures/session_000001
 ```

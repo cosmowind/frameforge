@@ -1,0 +1,4 @@
+path,location_status,scan_date,original_history_date,uploaded,extra_description,score,duration_sec,file_type,device_id,recorder_id,task_id,env_id,source_device
+./workspace/session_00000,local,2026-01-05,2026-01-04,No,HMD session · 2 parts · 312 MB · part_*.hmd,,368,hmd,a1b2c3d4e5f60001,op02,sample_hand_001,,sample-host
+./workspace/session_00001,local,2026-01-05,2026-01-04,No,HMD session · 2 parts · 260 MB · part_*.hmd,,250,hmd,a1b2c3d4e5f60001,op03,,,sample-host
+./workspace/session_00002,local,2026-01-06,2026-01-04,No,HMD session · 3 parts · 745 MB · part_*.hmd,,803,hmd,a1b2c3d4e5f60001,op01,sample_hand_001,,sample-host

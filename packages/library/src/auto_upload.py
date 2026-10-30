@@ -1779,7 +1779,7 @@ class AutoUploader:
                             await asyncio.sleep(1.5)
                             input_val = await inp.input_value()
                             self._log(f"  location_address: 点击后 input value = {input_val!r}")
-                            if any(kw in input_val for kw in ["南安", "辉煌", "仑苍", "示例市"]):
+                            if any(kw in input_val for kw in ["示例县", "示例品牌", "示例镇", "示例市"]):
                                 self._log(f"  location_address: ✓ GPS 锁定成功")
                                 return True
                             # 即使 input 没显示完整地址（GPS 只锁定坐标，地址显示在别处）也认为成功
@@ -4017,7 +4017,7 @@ def _build_template_from_row(row: dict, idx: int) -> dict:
     # 1) 内置必需字段默认值（最低优先级，全部使用中文页面对应值）
     template.setdefault("operator_consent", "yes")
     template.setdefault("operator_job", "生产工人")
-    template.setdefault("location_address", "南安市辉煌工业园区")
+    template.setdefault("location_address", "示例市示例工业园区")
     template.setdefault("environment", "工业制造")
     template.setdefault("facility_venue", "工厂")
 

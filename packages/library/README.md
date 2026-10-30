@@ -141,7 +141,10 @@ cp config.example.json runtime/data/config.json
 #    - deviceMonitor.destinationBase: 复制目标根目录
 #    - deviceMonitor.enabled: false = 只跑网页部分，不扫描也不改动真实素材
 
-# 3. 启动（同时拉起 Web + 设备监控线程）
+# 3. 可选：导入合成示例数据（列结构与本应用完全一致）
+cp samples/*.csv runtime/data/
+
+# 4. 启动（同时拉起 Web + 设备监控线程）
 python src/run.py
 # 或 Windows 双击 启动视频管理.bat
 ```

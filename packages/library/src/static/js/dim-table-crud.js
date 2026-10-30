@@ -290,7 +290,7 @@ const _DIM_FIELDS = {
   environments: {
     scene:         { type: 'select', required: true, optionsFromUpload: 'scenes', searchable: true },
     // 详细地址：默认值与上传页面对齐，使用中文
-    location_address: { type: 'text', required: true, placeholder: '南安市辉煌工业园区' },
+    location_address: { type: 'text', required: true, placeholder: '示例市示例工业园区' },
     // 环境大类：与上传页面对齐（24 项）
     environment:   { type: 'select', required: true, options: [
       '',

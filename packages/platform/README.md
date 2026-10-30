@@ -1,9 +1,8 @@
 # FrameForge — 视频录入员 SOP 工具（plan2）
 
 > **核心价值**：降低示例工厂 4 种异构设备（DJI/GoPro / 头环 HMD / GoPro MCAP / Generic AVI AVI）
-> 与录制员之间的摩擦；135 TB/月规模；3 步流程（选设备+扫 → 预览 → 填参+上传）。
+> 与录制员之间的摩擦；百 TB/月量级规模；3 步流程（选设备+扫 → 预览 → 填参+上传）。
 >
-> 详细方案见 `~/
 
 ## 技术栈（plan2 §7 D1-D10）
 
@@ -115,7 +114,7 @@ pnpm dev                    # uploader (3001) + admin (3002) + worker (3010)
 | 表数 | 11 | **15**（+ device_types / scf_invocations / puller_runs / audit_logs）|
 | Docker | 可选 | **必用** |
 | 队列 | 无 | **BullMQ** |
-| 业务规模 | 1 TB/月 | **135 TB/月** |
+| 业务规模 | 1 TB/月 | **百 TB/月量级** |
 
 > v1 已完整归档到 `../ff-v1-archive/`（独立 git 仓库 + 3 commits）
 

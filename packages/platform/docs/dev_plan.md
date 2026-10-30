@@ -2,7 +2,7 @@
 
 > 路线图 + 进行中 + 待办。规划任务时读本文。
 >
-> 完整 plan2 §9 在 `~/.claude/plans/plan2-ff.md`
+> 完整 plan2 §9 见本仓库的 `docs/dev_plan.md` 全文。
 
 ## Phase 状态
 
@@ -88,7 +88,7 @@
 |---|---|---|
 | 7 菜单 CRUD（device-types / recorders / environments / products×processes / users / regions / audit）| 改名不丢数据 | D2/D3/E10 |
 | Clerk webhook → ff_users 同步 | 创建用户自动入 ff_users | D8 |
-| 用户/区域管理 | 上海账号看不到示例省 | D7/§10 |
+| 用户/区域管理 | 示例市账号看不到示例省 | D7/§10 |
 | 配额日报表 | Admin 端看历史 | B1/B2 |
 | 审计日志 | 任意修改可追溯 | D4 |
 | OpenTelemetry/Sentry/限流（按需）| — | — |
@@ -100,7 +100,7 @@
 | 腾讯云 COS 资源包预付费 | 账单降 30-50% |
 | COS 生命周期 30/90/180d 自动转层 | 观察 1 月 |
 | 夸克网盘季度备份脚本（rclone） | 手动验证恢复 |
-| 性能压测（135TB/月并发） | P99 < 5s |
+| 性能压测（百 TB/月量级并发） | P99 < 5s |
 | 数据归档报表 Admin 端 | 各类存储视频数 + 成本 |
 
 ## Phase 4 — 完整版
@@ -123,4 +123,4 @@
 | MCAP 文件是否含视频轨道？ | 影响 MCAP Adapter 完整性 |
 | 客户 COS 桶名/地域/凭据 | L1 跨桶目标 |
 | 域名 + 备案主体 | 上线硬约束 |
-| 家用服务器情况（OS / 带宽 / RAID）| Puller 部署模型 |
+| 自建服务器情况（OS / 带宽 / RAID）| Puller 部署模型 |

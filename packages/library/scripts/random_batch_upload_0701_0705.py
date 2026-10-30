@@ -167,7 +167,7 @@ def _build_preview_template(
     template = {
         "operator_consent": "yes",
         "operator_job": "生产工人",
-        "location_address": "南安市辉煌工业园区",
+        "location_address": "示例市示例工业园区",
         "environment": "工业制造",
         "facility_venue": "工厂",
     }

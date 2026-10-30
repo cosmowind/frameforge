@@ -11,8 +11,8 @@ Plan2 v2 写于 2026-07-10，由用户在审阅 plan1 后要求大改。
   - 头环 HMD（私有格式）
   - 后期 GoPro（MCAP）
   - Generic AVI（多 AVI）
-- 业务规模：135 TB/月（不是 1 TB）
-- 域内 vs 外出录制员，区域隔离（上海/示例省）
+- 业务规模：百 TB/月量级（不是 1 TB）
+- 域内 vs 外出录制员，区域隔离（示例市/示例省）
 
 用户选型决策（plan2 §7）：
 - D1 Next.js 15 App Router + Turbopack（取代 Fastify）
@@ -36,7 +36,7 @@ Plan2 v2 写于 2026-07-10，由用户在审阅 plan1 后要求大改。
 - MCAP 文件是否含视频轨道？
 - 客户 COS 桶名 + 地域 + 凭据
 - 域名 + 备案主体
-- 家用服务器情况（OS / 公网 IP / 带宽 / RAID）
+- 自建服务器情况（OS / 公网 IP / 带宽 / RAID）
 - 首批录制员数量 + 设备型号清单
 - Generic AVI 单 session 最多几个 AVI
 - SCF 触发器 vs 定时拉取

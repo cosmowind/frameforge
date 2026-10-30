@@ -169,7 +169,7 @@ services:
       redis:
         condition: service_healthy
     volumes:
-      # 家用服务器上挂 L2 本地硬盘
+      # 自建服务器上挂 L2 本地硬盘
       - ${PULLER_LOCAL_ROOT:-./runtime/pull}:/data/pull
     deploy:
       resources:

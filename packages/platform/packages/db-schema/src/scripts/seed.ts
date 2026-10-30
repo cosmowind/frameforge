@@ -56,7 +56,7 @@ async function main(): Promise<void> {
 
   // 1) 默认 region
   await client.query(
-    `INSERT INTO ff_regions (code, name, is_active) VALUES ('default', '上海', true)
+    `INSERT INTO ff_regions (code, name, is_active) VALUES ('default', '示例市', true)
      ON CONFLICT (code) DO NOTHING`,
   )
   logger.info({ schema: SCHEMA }, 'ensured default region')

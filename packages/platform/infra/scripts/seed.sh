@@ -21,7 +21,7 @@ echo "==> seed super admin + 默认 region"
 psql -h "$PG_HOST" -p "$PG_PORT" -U "$PG_USER" -d "$PG_DB" \
   -v ON_ERROR_STOP=1 <<SQL
 INSERT INTO "$SCHEMA".regions (code, name, is_active)
-VALUES ('default', '上海', true)
+VALUES ('default', '示例市', true)
 ON CONFLICT (code) DO NOTHING;
 SQL
 

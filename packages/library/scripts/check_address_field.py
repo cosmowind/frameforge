@@ -19,7 +19,7 @@ async def main():
         # Type in the address field
         inp = uploader.page.locator("input[placeholder*='输入地址搜索']")
         if await inp.count() > 0:
-            await inp.first.fill("南安市辉煌工业园区")
+            await inp.first.fill("示例市示例工业园区")
             print("Filled address")
             await asyncio.sleep(3)
 

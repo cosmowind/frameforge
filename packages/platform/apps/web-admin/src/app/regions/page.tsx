@@ -4,7 +4,7 @@ export default function Page() {
   return (
     <div className="p-6">
       <h1 className="text-2xl font-semibold mb-4">区域</h1>
-      <p className="text-slate-600 mb-6">ff_regions 字典（上海 / 示例省）</p>
+      <p className="text-slate-600 mb-6">ff_regions 字典（示例市 / 示例省）</p>
       <div className="rounded border border-dashed border-slate-300 p-12 text-center text-slate-400">
         占位：Phase 1 填表格
       </div>

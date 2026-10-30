@@ -22,6 +22,11 @@ real problem, and a pipeline that wires them together.
 
 ## The packages
 
+> Two of these are also published on their own, if you would rather read one
+> thing than seven: **[frameforge-platform](https://github.com/cosmowind/frameforge-platform)**
+> (the upload platform) and **[frameforge-library](https://github.com/cosmowind/frameforge-library)**
+> (the footage library). Same code, separate repositories.
+
 | Package | What it does | Stack |
 |---|---|---|
 | [`packages/codec-hmd`](packages/codec-hmd) | Parses head-mounted dual-camera recordings (`.hmd`), converts to MP4, plays stereo streams **in the browser** with WebCodecs — no server, no upload. Also handles MCAP → MP4. | Node 18+, Python 3.10+, ffmpeg |
@@ -74,6 +79,7 @@ Copy the shipped example config and point `scanDirectory` at a directory of clip
 
 ```bash
 cp config.example.json runtime/data/config.json
+cp ../../samples/*.csv runtime/data/     # optional: synthetic sample rows
 ```
 
 The app scans it, renders a table, and lets you tag each row, preview it inline,

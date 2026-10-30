@@ -13,7 +13,7 @@
 | 当前版本 | `0.2.0` |
 | 最新 commits | v2-forms-spec.md 事实层 + 4 张 v2 表（operators/locations/scenes/scene_applications/video_uploads）|
 | 下一里程碑 | 4 张 v2 表的 admin/uploader 双端口占位页（开新对话做） |
-| 业务规模锚定 | **135 TB/月** |
+| 业务规模锚定 | **百 TB/月量级** |
 
 ## 已落实（plan2 Phase 0.2-0.9 ✅）
 
@@ -80,6 +80,6 @@
 - ❓ MCAP 文件是否含视频轨道
 - ❓ 客户 COS 桶名/地域/凭据
 - ❓ 域名 (`ff.example.com` 可申请否？备案主体？)
-- ❓ 家用服务器情况（OS / 公网 IP / 带宽 / 硬盘 RAID）
+- ❓ 自建服务器情况（OS / 公网 IP / 带宽 / 硬盘 RAID）
 - ❓ 首批录制员数量 + 设备型号清单
 - ❓ Generic AVI 单 session 最多几个 AVI？平均时长？
