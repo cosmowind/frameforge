@@ -4,6 +4,10 @@ node_modules/
 .turbo/
 dist/
 build/
+# ...but the two segmenter packages use "build/" as the electron-builder ICON
+# directory (it holds the icon documentation), not as a build-output directory.
+!packages/segmenter-app/build/
+!packages/segmenter-web/build/
 out/
 coverage/
 *.tsbuildinfo
