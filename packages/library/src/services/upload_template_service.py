@@ -37,8 +37,8 @@ def get_upload_template(row_index):
             template["operator_name"] = recorder_info.get("id", "")
         for f in ["operator_job", "operator_consent", "age_range", "gender",
                    "handedness", "gloves", "workforce_type", "role_experience",
-                   "task_experience", "collection_hours_today",
-                   "collection_experience_days", "hand_size_cm"]:
+                   "task_experience", "recording_hours_today",
+                   "recording_experience_days", "hand_size_cm"]:
             val = recorder_info.get(f, "").strip()
             if val and not template.get(f):
                 template[f] = val
@@ -115,7 +115,7 @@ def get_upload_template(row_index):
             "fields": [
                 "age_range", "gender", "handedness", "gloves", "workforce_type",
                 "role_experience", "task_experience",
-                "collection_hours_today", "collection_experience_days",
+                "recording_hours_today", "recording_experience_days",
                 "hand_size_cm",
             ]
         },

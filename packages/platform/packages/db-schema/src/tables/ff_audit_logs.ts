@@ -1,11 +1,11 @@
 // T14 — 通用审计日志（plan2 新增，who/when/action/target/before/after）
 import { uuid, text, jsonb, timestamp, index } from 'drizzle-orm/pg-core'
-import { vumSchema } from '../schema'
+import { ffSchema } from '../schema'
 import { appRoleEnum } from '../enums'
 import { users } from './ff_users'
 import { regions } from './ff_regions'
 
-export const auditLogs = vumSchema.table(
+export const auditLogs = ffSchema.table(
   'ff_audit_logs',
   {
     id: uuid('id').primaryKey().defaultRandom(),

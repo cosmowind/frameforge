@@ -81,7 +81,7 @@ export const TABLES: Record<TableKey, TableConfig> = {
       'handedness',
       'gloves',
       'workforce_type',
-      'collection_experience_days',
+      'recording_experience_days',
       'notes',
     ],
     defaultSort: { col: 'id', order: 'asc' },

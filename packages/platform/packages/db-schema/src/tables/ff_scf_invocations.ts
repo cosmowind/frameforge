@@ -1,10 +1,10 @@
 // T12 — SCF 函数调用审计（plan2 新增）
 import { uuid, text, integer, numeric, timestamp, jsonb, index } from 'drizzle-orm/pg-core'
 import { sql } from 'drizzle-orm'
-import { vumSchema } from '../schema'
+import { ffSchema } from '../schema'
 import { scfTriggerEnum, runStatusEnum } from '../enums'
 
-export const scfInvocations = vumSchema.table(
+export const scfInvocations = ffSchema.table(
   'ff_scf_invocations',
   {
     id: uuid('id').primaryKey().defaultRandom(),

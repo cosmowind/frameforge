@@ -5,7 +5,7 @@
   - handedness      : Right-handed → 右手, Left-handed → 左手, Ambidextrous → 双手皆可
   - gloves          : No — bare hands → 否 —— 徒手, Yes — wearing gloves → 是 —— 戴手套
   - workforce_type  : Real worker (does this job) → 真实员工(本职工作)
-                     Contractor (hired for collection) → 承包者(为接入雇佣)
+                     Contractor (hired for recording) → 承包者(为接入雇佣)
   - operator_consent: Yes → 是, No → 否
   - operator_job    : 见 JOB_MAP（与上传页面 235 项选项对齐）
 
@@ -40,7 +40,7 @@ GLOVES_MAP = {
 }
 WORKFORCE_MAP = {
     "Real worker (does this job)": "真实员工(本职工作)",
-    "Contractor (hired for collection)": "承包者(为接入雇佣)",
+    "Contractor (hired for recording)": "承包者(为接入雇佣)",
 }
 CONSENT_MAP = {
     "Yes": "是",

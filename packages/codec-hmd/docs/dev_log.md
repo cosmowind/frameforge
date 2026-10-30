@@ -31,7 +31,7 @@
 **验证**（verify_hmd_packets.js 12/12 通过）：
 - 256 真实包（128 IMU + 128 glue）
 - HEVC 流 256MB，19,400 start codes
-- hevc(268418371) + umi3(13440) = file_size(268431811) 字节数对账通过
+- hevc(268418371) + hmd3(13440) = file_size(268431811) 字节数对账通过
 - 588 IDR 帧匹配 32min × 30fps / GOP
 
 **回顾**：

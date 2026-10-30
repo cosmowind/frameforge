@@ -76,7 +76,7 @@
   → 期望：PTS 间隔是否规律 30fps？
 
 实验 2：写 verify_hmd_stereo.js
-  - 修正后的 parseUmi() 解析 session_00000/part_000.hmd
+  - 修正后的 parseHmd() 解析 session_00000/part_000.hmd
   - 抽 0x5b 全部 NAL，统计 IDR 周期
   - 抽 0x5b 第 1 帧的 SPS，看 pic_width_in_luma_samples
   - 抽 0x5b 第 1 帧 decoded 后的 raw 像素，看是否 3840x1080

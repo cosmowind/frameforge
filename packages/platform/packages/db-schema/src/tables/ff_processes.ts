@@ -1,10 +1,10 @@
 // T6 — 工序（FK → products，D7）
 import { uuid, text, boolean, integer, timestamp, uniqueIndex, index } from 'drizzle-orm/pg-core'
-import { vumSchema } from '../schema'
+import { ffSchema } from '../schema'
 import { products } from './ff_products'
 import { users } from './ff_users'
 
-export const processes = vumSchema.table(
+export const processes = ffSchema.table(
   'ff_processes',
   {
     id: uuid('id').primaryKey().defaultRandom(),

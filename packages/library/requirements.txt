@@ -1,0 +1,7 @@
+flask
+requests
+playwright
+urllib3
+python-dotenv
+sqlalchemy
+psycopg2-binary

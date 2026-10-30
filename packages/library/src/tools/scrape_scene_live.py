@@ -162,7 +162,7 @@ async def main():
             "city", "Location address", "facility", "venue", "business_type",
             "business_name", "OPERATOR", "age_range", "gender", "handedness",
             "gloves", "workforce_type", "role_experience", "task_experience",
-            "collection_hours", "collection_experience", "hand_size",
+            "recording_hours", "recording_experience", "hand_size",
             "RECENT UPLOADS", "session_", "ViewCopy attributes", "Sample Platform",
             "MANAGER", "Progress", "Application", "Profile", "Upload",
             "Upload History", "Operators", "Updates", "Payments",

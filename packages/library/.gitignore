@@ -1,0 +1,100 @@
+# --- Python ---
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+build/
+dist/
+.eggs/
+*.whl
+
+# --- 虚拟环境 ---
+venv/
+.venv/
+env/
+
+# --- 日志 / 临时 ---
+*.log
+*.tmp
+*.bak
+nul
+device_monitor.log
+hmd_mp4_debug.log
+
+# --- 用户运行时数据（不能进 git）---
+runtime/data/*.csv
+runtime/data/*.csv.bak*
+runtime/data/*.json
+runtime/data/*.png
+runtime/csv_backups/
+runtime/archive/
+runtime/logs/
+runtime/browser_data/
+*.csv
+*.pid
+_upload_now_*.cmd
+_upload_now_*.py
+_upload_now_wrapper_*.cmd
+
+# --- 根目录浏览器数据（已迁移至 runtime/browser_data/）---
+# browser_data/  # 不再在根目录
+
+# --- 运行时缓存（可重新生成）---
+runtime/thumbnails/
+runtime/hmd_cache/
+runtime/.startup_warm_done
+.startup_warm_done
+_thumb_*/
+
+# --- 浏览器数据（cookie / session）---
+.playwright-cli/
+
+# --- 应用配置（可能包含路径、凭据）---
+runtime/data/config.json
+runtime/data/snap.yaml
+runtime/data/wcs-manifest.yaml
+config.json
+snap.yaml
+wcs-manifest.yaml
+
+# --- 打包备份产物（bat 生成）---
+打包备份_*.zip
+video-sort-package_*.zip
+
+# --- 凭据（绝对不能进 git）---
+cookie.txt
+*.cookie
+.env
+.env.local
+secrets.json
+api_key*
+
+# --- 打包产物 ---
+*.spec.bak
+视频管理.spec.bak
+
+# --- IDE / 编辑器 ---
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# --- 本地 AI 状态（IDE 内部数据，不是项目代码）---
+.claude/
+.codebuddy/
+
+# --- 临时调试脚本 ---
+_check_*.py
+_fix_*.py
+_test_*.py
+_debug_*.py
+upload_page_debug.png
+after_inject.png
+runtime/data/env_check.txt
+
+# --- Node modules ---
+node_modules/

@@ -1,7 +1,7 @@
 'use client'
 // /step1-scan — Step 1：选设备类型 + 扫描（plan2 §2.1）
 // 工作流（手机/电脑通用）：
-//   1. 4 设备卡单选（DjiGoPro / HeadMountedUmi / GoproSessionMcap / GenericAviRecording）
+//   1. 4 设备卡单选（DjiGoPro / HeadMountedHmd / GoproSessionMcap / GenericAviRecording）
 //   2. 「选择文件夹」按钮 → <input type="file" webkitdirectory> 触发（手机/Android Chrome/iOS Safari 13.4+ 全支持）
 //   3. JS 遍历 FileList，按 webkitRelativePath 建虚拟目录树，按设备 pattern 找候选目录
 //   4. 用户勾选 1+ 候选 → 「下一步」→ 写入 localStorage + 跳 /step2-preview

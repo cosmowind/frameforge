@@ -2,7 +2,7 @@
 import type { Processor } from 'bullmq'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import pg from 'pg'
-import { vumSchema } from '@ff/db-schema'
+import { ffSchema } from '@ff/db-schema'
 import { videoRecords } from '@ff/db-schema/tables/ff_video_records'
 import { deviceTypes } from '@ff/db-schema/tables/ff_device_types'
 import { eq } from 'drizzle-orm'
@@ -16,7 +16,7 @@ const pool = new pg.Pool({
   connectionString: env.DATABASE_URL,
   options: `-c search_path=${SCHEMA}`,
 })
-export const db = drizzle(pool, { schema: vumSchema })
+export const db = drizzle(pool, { schema: { videoRecords, deviceTypes } })
 
 export const processDeviceScan: Processor = async (job) => {
   const { deviceTypeCode, rootPath } = job.data as { deviceTypeCode: string; rootPath: string }

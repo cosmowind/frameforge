@@ -1,10 +1,10 @@
 // T5 — 产品
 import { uuid, text, boolean, integer, timestamp, uniqueIndex, index } from 'drizzle-orm/pg-core'
-import { vumSchema } from '../schema'
+import { ffSchema } from '../schema'
 import { regions } from './ff_regions'
 import { users } from './ff_users'
 
-export const products = vumSchema.table(
+export const products = ffSchema.table(
   'ff_products',
   {
     id: uuid('id').primaryKey().defaultRandom(),

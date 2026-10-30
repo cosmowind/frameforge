@@ -50,11 +50,11 @@ function renderTable() {
     const isHistory = (row.location_status || '').endsWith('_history');
     const historyClass = isHistory ? ' history-row' : '';
     html += `<tr data-index="${originalIndex}" data-filtered-idx="${i}" class="${activeClass}${historyClass}">`;
-    const isUmi = row.file_type === 'hmd';
+    const isHmd = row.file_type === 'hmd';
     const ps = _preprocessStatusMap[row.path];
     // HMD 未完成预处理时禁用预览按钮
     // 注意：_preprocessStatusMap 初始为空，ps 为 undefined 也表示状态未知 → 禁用
-    const hmdNotReady = isUmi && (!ps || ps.hmd_preprocess !== 'done');
+    const hmdNotReady = isHmd && (!ps || ps.hmd_preprocess !== 'done');
     let previewBtn;
     if (isHistory) {
       previewBtn = `<button class="btn btn-outline btn-small btn-preview-disabled" onclick="alert('历史视频无法预览（文件已删除）')">预览</button>`;
@@ -113,8 +113,8 @@ function renderTable() {
         const secVal = parseInt(row[key] || '', 10);
         const realDisplay = (!isNaN(secVal) && secVal > 0) ? fmtDur(secVal) : esc(row[key] || '');
         let estimateHtml = '';
-        const isUmi = (row.file_type || '') === 'hmd';
-        if (isUmi) {
+        const isHmd = (row.file_type || '') === 'hmd';
+        if (isHmd) {
           // 优先用后端预计算的 _estimate_sec；前端也能即时算
           let estSec = parseInt(row._estimate_sec || '0', 10);
           if (!estSec && row._size_mb && estimateRatioMbPerMin) {
@@ -129,7 +129,7 @@ function renderTable() {
             estimateHtml = `<span style="color:#bbb;font-size:11px;">（未处理）</span>`;
           }
         }
-        html += `<td class="${cls}"${style}><span>${realDisplay || (isUmi ? '<span style=\"color:#bbb;\">--</span>' : '')}</span> ${estimateHtml}</td>`;
+        html += `<td class="${cls}"${style}><span>${realDisplay || (isHmd ? '<span style=\"color:#bbb;\">--</span>' : '')}</span> ${estimateHtml}</td>`;
       } else if (type && type.startsWith('select-dimension:')) {
         // 维表 select：改为 searchable-sel，输入即可搜索
         const dim = type.split(':')[1];

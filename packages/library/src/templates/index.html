@@ -679,7 +679,7 @@ async function loadConfig() {
 function getDefaultColumns() {
   return [
     { key: 'path',                   label: '视频路径',       type: 'path',                   visible: true },
-    { key: 'file_type',              label: '类型',           type: 'select-mp4umi',          visible: true },
+    { key: 'file_type',              label: '类型',           type: 'select-mp4hmd',          visible: true },
     { key: 'location_status',        label: '状态',           type: 'select-location',        visible: true },
     { key: 'scan_date',              label: '录入日期',       type: 'input',                  visible: true },
     { key: 'original_history_date',   label: '原始日期',       type: 'input',                  visible: false },
@@ -2166,8 +2166,8 @@ const _DIM_FIELDS = {
     workforce_type: { type: 'select', required: true, options: ['', '真实员工(本职工作)', '承包者(为接入雇佣)'] },
     role_experience: { type: 'text', placeholder: '岗位经验（如 2 years）' },
     task_experience: { type: 'text', placeholder: '工序经验' },
-    collection_hours_today: { type: 'text', placeholder: '当日接入时长(h)' },
-    collection_experience_days: { type: 'text', placeholder: '累计接入天数' },
+    recording_hours_today: { type: 'text', placeholder: '当日接入时长(h)' },
+    recording_experience_days: { type: 'text', placeholder: '累计接入天数' },
     hand_size_cm: { type: 'text', placeholder: '手尺寸(cm)' },
     notes: { type: 'text', placeholder: '备注（可选）' },
   },

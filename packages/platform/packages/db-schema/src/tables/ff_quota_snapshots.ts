@@ -1,10 +1,10 @@
 // T11 — 多样性/配额日快照（新增以 recorder_key 维度）
 import { uuid, text, integer, date, jsonb, timestamp, uniqueIndex, index } from 'drizzle-orm/pg-core'
-import { vumSchema } from '../schema'
+import { ffSchema } from '../schema'
 import { regions } from './ff_regions'
 import { processes } from './ff_processes'
 
-export const quotaSnapshots = vumSchema.table(
+export const quotaSnapshots = ffSchema.table(
   'ff_quota_snapshots',
   {
     id: uuid('id').primaryKey().defaultRandom(),

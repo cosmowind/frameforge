@@ -574,9 +574,9 @@ for u in hmd_folders:
 ```javascript
 function preview(index) {
   const row = tableData[index];
-  const isUmi = row.extra_description?.includes('HMD') ||
+  const isHmd = row.extra_description?.includes('HMD') ||
                 row.path.includes('session_') && !row.path.match(/\.(mp4|mov)$/i);
-  if (isUmi) {
+  if (isHmd) {
     window.open('/hmd-preview?path=' + encodeURIComponent(row.path), '_blank');
     return;
   }

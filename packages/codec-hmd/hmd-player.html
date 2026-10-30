@@ -106,7 +106,7 @@ function findPackets(buf) {
   return out;
 }
 
-async function parseUmi(buf, onProgress) {
+async function parseHmd(buf, onProgress) {
   onProgress = onProgress || (() => {});
   const packets = findPackets(buf);
   const nals = [];
@@ -300,7 +300,7 @@ async function load(file) {
     const t0 = performance.now();
     _fileBuf = new Uint8Array(await file.arrayBuffer());
     setStatus('解析容器…', 0);
-    const parsed = await parseUmi(_fileBuf, p => setStatus('解析容器…', p));
+    const parsed = await parseHmd(_fileBuf, p => setStatus('解析容器…', p));
     console.log('parsed:', { packets: parsed.nals.length, vps: !!parsed.vps, sps: !!parsed.sps, pps: !!parsed.pps, imu: parsed.imu, video: parsed.video });
     $('hud').textContent = `${file.name} · ${(_fileBuf.length/1024/1024).toFixed(0)} MB · ${parsed.video} 视频包 · ${parsed.imu} IMU · 解析 ${(performance.now()-t0).toFixed(0)} ms`;
     if (parsed.skipped) $('hud').textContent += ` · 跳过 ${parsed.skipped}`;

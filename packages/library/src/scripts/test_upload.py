@@ -58,7 +58,7 @@ def show_template(template: dict):
         "Operator": [
             "age_range", "gender", "handedness", "gloves",
             "workforce_type", "role_experience", "task_experience",
-            "collection_hours_today", "collection_experience_days",
+            "recording_hours_today", "recording_experience_days",
             "hand_size_cm",
         ],
         "Other": [],

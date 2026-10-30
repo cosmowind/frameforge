@@ -1,5 +1,0 @@
-task_id,scene,product,task,tool,process,difficulty,quota_min,notes
-sample_hand_001,工作台,产品A,手部操作识别,运动相机,抓握判定,easy,60,5 次抓握
-sample_hand_002,工作台,产品A,手部操作识别,运动相机,旋转判定,medium,120,12 次旋转
-sample_assem_001,生产线,产品B,装配流程记录,运动相机,紧固三步,hard,600,完整装配 3 件套
-sample_pack_001,仓储,产品C,装箱作业,运动相机,搬运与码放,medium,240,

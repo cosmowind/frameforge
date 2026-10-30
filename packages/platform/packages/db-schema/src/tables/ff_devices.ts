@@ -1,8 +1,8 @@
 // T7 — 设备指纹（plan2 详化字段）
 import { uuid, text, boolean, timestamp, uniqueIndex, index } from 'drizzle-orm/pg-core'
-import { vumSchema } from '../schema'
+import { ffSchema } from '../schema'
 
-export const devices = vumSchema.table(
+export const devices = ffSchema.table(
   'ff_devices',
   {
     id: uuid('id').primaryKey().defaultRandom(),

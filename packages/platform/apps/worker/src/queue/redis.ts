@@ -3,6 +3,9 @@ import { Queue, Worker, type Processor } from 'bullmq'
 import IORedis from 'ioredis'
 import { env } from '../config/env.js'
 
+// re-exported so job modules can import the env with the queue helpers
+export { env }
+
 export const redis = new IORedis(env.REDIS_URL, {
   maxRetriesPerRequest: null, // BullMQ 要求
   enableReadyCheck: true,

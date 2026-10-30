@@ -278,8 +278,8 @@ def autofill(operator_name: str = "", task_desc: str = "",
     if c_info:
         for f in ("operator_job", "operator_consent", "age_range", "gender",
                   "handedness", "gloves", "workforce_type", "role_experience",
-                  "task_experience", "collection_hours_today",
-                  "collection_experience_days", "hand_size_cm"):
+                  "task_experience", "recording_hours_today",
+                  "recording_experience_days", "hand_size_cm"):
             v = (c_info.get(f) or "").strip()
             if v and not fields.get(f):
                 fields[f] = v

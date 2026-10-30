@@ -203,9 +203,9 @@ async function galleryEditorSave(silent = false) {
 function galleryOverlayPlayVideo() {
   const card = galleryState.cards[galleryState.overlayIdx];
   if (!card) return;
-  const isUmi = (card.file_type || '') === 'hmd';
+  const isHmd = (card.file_type || '') === 'hmd';
   // HMD → 使用系统播放器打开预处理完成的视频（与表格预览一致）
-  if (isUmi) {
+  if (isHmd) {
     const ps = _preprocessStatusMap[card.path];
     if (ps && ps.hmd_preprocess === 'done') {
       openHmdPreviewInline(card.path);

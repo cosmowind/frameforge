@@ -354,7 +354,7 @@ function frameToNals(hevc, paramSets) {
 function stripHmdSc(nal) {
   return (nal[0]===0&&nal[1]===0&&nal[2]===0&&nal[3]===1) ? nal.subarray(4) : nal;
 }
-function avccWrapUmi(nal) {
+function avccWrapHmd(nal) {
   const body = stripHmdSc(nal);
   const out = new Uint8Array(4 + body.length);
   new DataView(out.buffer).setUint32(0, body.length, false);
@@ -463,7 +463,7 @@ function setupHmdDecoders() {
 function feedHmdFrame(dec, nalEntry, frameIdx) {
   if (nalEntry.type === 'ps') return;
   const isKey = nalEntry.type === 19 || nalEntry.type === 20;
-  const data = avccWrapUmi(nalEntry.data);
+  const data = avccWrapHmd(nalEntry.data);
   const dur = Math.round(1e6 / 30);
   dec.decode(new EncodedVideoChunk({ type: isKey ? 'key' : 'delta', timestamp: frameIdx * dur, duration: dur, data }));
 }

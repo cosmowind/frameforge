@@ -11,7 +11,7 @@ import {
   index,
 } from 'drizzle-orm/pg-core'
 import { sql } from 'drizzle-orm'
-import { vumSchema } from '../schema'
+import { ffSchema } from '../schema'
 import { lifecycleStateEnum } from '../enums'
 import { deviceTypes } from './ff_device_types'
 import { recorders } from './ff_recorders'
@@ -20,7 +20,7 @@ import { processes } from './ff_processes'
 import { regions } from './ff_regions'
 import { users } from './ff_users'
 
-export const videoRecords = vumSchema.table(
+export const videoRecords = ffSchema.table(
   'ff_video_records',
   {
     id: uuid('id').primaryKey().defaultRandom(),

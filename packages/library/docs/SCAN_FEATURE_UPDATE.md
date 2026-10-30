@@ -49,7 +49,7 @@
 **新增脚本**：
 - `fix_data_sessions.py`：修复 data session 的设备前缀
 - `fix_hmd_sessions.py`：修复 HMD session 的设备前缀
-- `merge_hmd_directories.py`：整合 `hmd` 和 `umi1` 目录
+- `merge_hmd_directories.py`：整合 `hmd` 和 `hmd1` 目录
 - `cleanup_duplicate_sessions.py`：清理重复 session
 
 **使用场景**：
@@ -65,7 +65,7 @@
 ### 测试结果
 ✅ **Data 目录扫描**：成功识别 `session.json` 中的设备ID（`a1b2c3d4e5f60001`）
 ✅ **设备前缀添加**：session 文件夹正确重命名为 `sample_session_00000`
-✅ **目录整合**：成功将 `umi1` 目录下的 session 移动到 `hmd` 目录
+✅ **目录整合**：成功将 `hmd1` 目录下的 session 移动到 `hmd` 目录
 ✅ **重复清理**：成功检测并删除 3 个重复的 session，保留 2 个不完整的 session 供手动检查
 
 ## 兼容性说明

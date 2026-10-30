@@ -3,4 +3,4 @@
 import { pgSchema } from 'drizzle-orm/pg-core'
 
 export const SCHEMA_NAME = process.env.DATABASE_SCHEMA ?? 'ff'
-export const vumSchema = pgSchema(SCHEMA_NAME)
+export const ffSchema = pgSchema(SCHEMA_NAME)

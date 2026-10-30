@@ -128,7 +128,7 @@ function splitNalsAnnexb(hevc) {
   return out;
 }
 
-async function parseUmi(input, onProgress) {
+async function parseHmd(input, onProgress) {
   const buf = input instanceof Uint8Array ? input : new Uint8Array(input);
   onProgress = onProgress || (() => {});
   const packets = findPackets(buf);
@@ -257,7 +257,7 @@ $('loadBtn').addEventListener('click', async () => {
   try {
     const buf = await f.arrayBuffer();
     $('loadStatus').textContent = '解析容器…';
-    parsed = await parseUmi(new Uint8Array(buf), p => {
+    parsed = await parseHmd(new Uint8Array(buf), p => {
       if (p === 1) $('loadStatus').textContent = '解析完成 ✓';
     });
     log('解析统计:', JSON.stringify(parsed.stats));

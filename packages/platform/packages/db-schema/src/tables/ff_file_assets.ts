@@ -1,10 +1,10 @@
 // T10 — 文件资源索引（三层存储）
 import { uuid, text, bigint, integer, timestamp, jsonb, uniqueIndex, index } from 'drizzle-orm/pg-core'
-import { vumSchema } from '../schema'
+import { ffSchema } from '../schema'
 import { cosStorageClassEnum } from '../enums'
 import { videoRecords } from './ff_video_records'
 
-export const fileAssets = vumSchema.table(
+export const fileAssets = ffSchema.table(
   'ff_file_assets',
   {
     id: uuid('id').primaryKey().defaultRandom(),

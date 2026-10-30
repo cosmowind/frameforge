@@ -90,9 +90,9 @@ for (const p of allPackets) {
   // CHUNK: counted in HEVC payload total since the chunk header (27 bytes) is part of HEVC stream
 }
 const reconstructed = r.stats.hevcBytes + hmdBytes;
-check('hevc + umi3-packet bytes = total file size',
+check('hevc + hmd3-packet bytes = total file size',
   reconstructed === totalSize,
-  `hevc=${r.stats.hevcBytes} + umi3=${hmdBytes} = ${reconstructed}, total=${totalSize}`);
+  `hevc=${r.stats.hevcBytes} + hmd3=${hmdBytes} = ${reconstructed}, total=${totalSize}`);
 
 // ---- dedupParamSets ----
 const tDedup = Date.now();

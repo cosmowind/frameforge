@@ -204,13 +204,13 @@ function galleryOverlayOpen(idx) {
   if (!card) return;
   const overlay = document.getElementById('galleryOverlay');
   const body = document.getElementById('galleryOverlayBody');
-  const isUmi = (card.file_type || '') === 'hmd';
+  const isHmd = (card.file_type || '') === 'hmd';
   // Normalize path separators to forward slashes for URL safety
   const normalizedPath = (card.path || '').replace(/\\/g, '/');
   
   // HMD 未完成预处理时不加载帧（避免 API 500）
   const ps = _preprocessStatusMap[card.path];
-  const hmdNotReady = isUmi && ps && ps.hmd_preprocess && ps.hmd_preprocess !== 'done';
+  const hmdNotReady = isHmd && ps && ps.hmd_preprocess && ps.hmd_preprocess !== 'done';
   const framesHint = hmdNotReady
     ? `<div class="gallery-frames-loading" style="color:#f0a020;">⏳ HMD 预处理${ps.hmd_preprocess==='processing'?'中':'未完成'}${ps.hmd_progress?'（'+ps.hmd_progress+'%）':''}，预览帧暂不可用</div>`
     : `<div class="gallery-frames-loading">加载预览帧...</div>`;
@@ -253,14 +253,14 @@ function galleryOverlayOpen(idx) {
   try { localStorage.setItem('galleryLastDetailPath', card.path); } catch(e) {}
   
   // Load frames
-  loadGalleryFrames(normalizedPath, isUmi);
+  loadGalleryFrames(normalizedPath, isHmd);
 }
 
-function loadGalleryFrames(videoPath, isUmi) {
+function loadGalleryFrames(videoPath, isHmd) {
   const container = document.getElementById('galleryFramesContainer');
   if (!container) return;
   
-  const apiUrl = isUmi
+  const apiUrl = isHmd
     ? `/api/hmd/frames?folder=${encodeURIComponent(videoPath)}`
     : `/api/video/frames?path=${encodeURIComponent(videoPath)}`;
   

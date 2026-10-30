@@ -186,8 +186,8 @@ def _build_preview_template(
             ("workforce_type", "workforce_type"),
             ("role_experience", "role_experience"),
             ("task_experience", "task_experience"),
-            ("collection_hours_today", "collection_hours_today"),
-            ("collection_experience_days", "collection_experience_days"),
+            ("recording_hours_today", "recording_hours_today"),
+            ("recording_experience_days", "recording_experience_days"),
             ("hand_size_cm", "hand_size_cm"),
         ]:
             val = (coll.get(src) or "").strip()

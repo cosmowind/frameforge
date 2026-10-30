@@ -249,7 +249,7 @@ function _makeBar(label, pct, counts) {
   return wrap;
 }
 
-async function retryUmi(folder) {
+async function retryHmd(folder) {
   if (!confirm('确认重新预处理：' + folder.split(/[\\/]/).pop())) return;
   try {
     const res = await fetch('/api/hmd/retry', {
@@ -271,5 +271,5 @@ async function retryUmi(folder) {
 
 function retryHmdFromBtn(btn) {
   const folder = btn.getAttribute('data-folder');
-  if (folder) retryUmi(folder);
+  if (folder) retryHmd(folder);
 }

@@ -1,10 +1,10 @@
 // T2 — 账号（与 Clerk 1:1）
 import { uuid, text, boolean, timestamp, index } from 'drizzle-orm/pg-core'
-import { vumSchema } from '../schema'
+import { ffSchema } from '../schema'
 import { appRoleEnum } from '../enums'
 import { regions } from './ff_regions'
 
-export const users = vumSchema.table(
+export const users = ffSchema.table(
   'ff_users',
   {
     id: uuid('id').primaryKey().defaultRandom(),

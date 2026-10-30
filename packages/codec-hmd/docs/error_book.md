@@ -15,7 +15,7 @@
 | 根因 | 旧 `findPackets` 用 `p += total` 跳到下一包，但 `total = sizeField + 8` 而 `sizeField` 是把 type 字节当 u32 LE 读。`total = TT + 8` 远小于真实包大小，导致步进错误。**HMD 容器没有 size 字段**，包大小只能硬编码：IMU=97 字节，glue header=8 字节 |
 | 错误尝试 | 1) "3 字节零判别"扫出 58913 候选，但 41286 是 HEVC payload 里的假 HMD3；2) 距离法（next-cur）会把 HEVC 间隙吞到上一包 |
 | 正确方案 | 1) 用 3 字节零判别 + type ∈ {0x59, 0x5a} 双重过滤；2) `total` 硬编码（IMU=97, glue=8）；3) parse 循环按"真实包占用字节"步进 cursor，间隙归 HEVC |
-| 验证 | `node verify_hmd_packets.js` 12/12 通过；hevc(268418371) + umi3(13440) = 268431811 = file_size 字节数对得上；588 IDR 帧 |
+| 验证 | `node verify_hmd_packets.js` 12/12 通过；hevc(268418371) + hmd3(13440) = 268431811 = file_size 字节数对得上；588 IDR 帧 |
 | 预防 | 1) hmd-decode.js 顶部加注释明确"容器无 size 字段"；2) verify_hmd_packets.js 包含字节数对账断言；3) 改 API 时保留 `parse/findPackets` 函数签名 |
 | 关联 | Task #15 ✅ |
 

@@ -11,13 +11,13 @@ function preview(index) {
 
   // HMD folder entry → 打开内嵌 HMD 预览面板（同页，不弹新窗口）
   // 优化：更准确地识别HMD session
-  const rowIsUmi = row.file_type === 'hmd'
+  const rowIsHmd = row.file_type === 'hmd'
     || (row.path && (
       /session_\d+/.test(row.path) ||  // 路径包含 session_xxxxx
       row.path.endsWith('.mcap') ||  // .mcap 文件
       (row.extra_description && /HMD session/i.test(row.extra_description))  // extra_description 包含 HMD session
     ));
-  if (rowIsUmi) {
+  if (rowIsHmd) {
     const folder = row.path;
     closePlayer();
     openHmdPreviewInline(folder);
@@ -56,8 +56,8 @@ function preview(index) {
       const secVal = parseInt(row[col.key] || '', 10);
       const realDisplay = (!isNaN(secVal) && secVal > 0) ? fmtDur(secVal) : (row[col.key] || '--');
       let estimateHtml = '';
-      const isUmi = (row.file_type || '') === 'hmd';
-      if (isUmi) {
+      const isHmd = (row.file_type || '') === 'hmd';
+      if (isHmd) {
         let estSec = parseInt(row._estimate_sec || '0', 10);
         if (!estSec && row._size_mb && estimateRatioMbPerMin) {
           estSec = Math.round((row._size_mb / estimateRatioMbPerMin) * 60);

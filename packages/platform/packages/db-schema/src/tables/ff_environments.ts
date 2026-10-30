@@ -1,10 +1,10 @@
 // T4 — 拍摄环境/地址
 import { uuid, text, boolean, integer, timestamp, uniqueIndex, index } from 'drizzle-orm/pg-core'
-import { vumSchema } from '../schema'
+import { ffSchema } from '../schema'
 import { regions } from './ff_regions'
 import { users } from './ff_users'
 
-export const environments = vumSchema.table(
+export const environments = ffSchema.table(
   'ff_environments',
   {
     id: uuid('id').primaryKey().defaultRandom(),

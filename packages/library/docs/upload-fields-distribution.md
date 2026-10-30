@@ -26,8 +26,8 @@
 | 9 | `workforce_type` | 劳动力类型 | `workforce_type` | ✅ | select | Real worker / Contractor |
 | 10 | `role_experience` | 岗位经验 | `role_experience` | 推荐 | text | 推荐填写 |
 | 11 | `task_experience` | 工序经验 | `task_experience` | 推荐 | text | 推荐填写 |
-| 12 | `collection_hours_today` | 当日接入时长 | `collection_hours_today` | 推荐 | text | 推荐填写 |
-| 13 | `collection_experience_days` | 累计接入天数 | `collection_experience_days` | 推荐 | text | 推荐填写 |
+| 12 | `recording_hours_today` | 当日接入时长 | `recording_hours_today` | 推荐 | text | 推荐填写 |
+| 13 | `recording_experience_days` | 累计接入天数 | `recording_experience_days` | 推荐 | text | 推荐填写 |
 | 14 | `hand_size_cm` | 手尺寸(cm) | `hand_size_cm` | 推荐 | text | 推荐填写 |
 | 15 | `notes` | 备注 | — | — | text | 可选 |
 
@@ -118,7 +118,7 @@
 
 1. **内置默认值**（最低优先级）
 2. **config.json `uploadTemplate`** 用户自定义默认值
-3. **recorders.csv**：由 `recorder_id` 匹配 → 填充 `operator_name`, `operator_job`, `operator_consent`, `age_range`, `gender`, `handedness`, `gloves`, `workforce_type`, `role_experience`, `task_experience`, `collection_hours_today`, `collection_experience_days`, `hand_size_cm`
+3. **recorders.csv**：由 `recorder_id` 匹配 → 填充 `operator_name`, `operator_job`, `operator_consent`, `age_range`, `gender`, `handedness`, `gloves`, `workforce_type`, `role_experience`, `task_experience`, `recording_hours_today`, `recording_experience_days`, `hand_size_cm`
 4. **sd_cards.csv**：由 `device_id`（匹配 `volume_serial`） → 填充 `captureMode`, `country`, `state_province`, `city`, `stable_site_identifier`
 5. **tasks.csv**：由 `task_id` 匹配 → 填充 `task_difficulty`, `task_description`(=process), `business_type`, `business_name`
 6. **environments.csv**：由 `env_id` 匹配 → 填充 `environment_description`, `scene`, `location_address`, `environment`, `facility_venue`

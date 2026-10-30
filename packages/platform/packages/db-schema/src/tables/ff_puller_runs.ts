@@ -1,9 +1,9 @@
 // T13 — Puller 拉取记录（plan2 新增）
 import { uuid, integer, bigint, numeric, timestamp, jsonb, index } from 'drizzle-orm/pg-core'
-import { vumSchema } from '../schema'
+import { ffSchema } from '../schema'
 import { runStatusEnum } from '../enums'
 
-export const pullerRuns = vumSchema.table(
+export const pullerRuns = ffSchema.table(
   'ff_puller_runs',
   {
     id: uuid('id').primaryKey().defaultRandom(),

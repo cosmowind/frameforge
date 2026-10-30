@@ -15,7 +15,7 @@
 |---|---|---|---|---|
 | `videos` | `public.videos` | `path` | `scan_date DESC` | path / recorder_id / task_id / env_id / duration_sec / file_type / device_id / uploaded / score / scan_date / extra_description |
 | `tasks` | `public.tasks` | `task_id` | `task_id ASC` | task_id / task / process / process_en / product / tool / difficulty / quota_min / scene / environment |
-| `recorders` | `public.recorders` | `id` | `id ASC` | id / name / phone / operator_job / age_range / gender / handedness / gloves / workforce_type / collection_experience_days / notes |
+| `recorders` | `public.recorders` | `id` | `id ASC` | id / name / phone / operator_job / age_range / gender / handedness / gloves / workforce_type / recording_experience_days / notes |
 | `environments` | `public.environments` | `env_id` | `env_id ASC` | env_id / scene / environment / environment_description / environment_description_en / location_address / facility_venue / notes |
 
 - 表名：zod enum 白名单，非白名单 → 422

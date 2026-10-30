@@ -19,12 +19,12 @@ export const HeadMountedHmdAdapter: DeviceAdapter = {
     for (const s of sessions) {
       const sessionDir = path.posix.join(rootPath, s.name)
       const inner = await fs.readdir(sessionDir).catch(() => [])
-      const umis = inner.filter((f) => f.toLowerCase().endsWith('.hmd'))
-      if (umis.length === 0) continue
+      const hmds = inner.filter((f) => f.toLowerCase().endsWith('.hmd'))
+      if (hmds.length === 0) continue
       units.push({
         sessionId: s.name,
         displayName: s.name,
-        filePaths: umis.map((f) => path.posix.join(sessionDir, f)),
+        filePaths: hmds.map((f) => path.posix.join(sessionDir, f)),
         estimatedSize: 0,
         estimatedDuration: 0,
       })

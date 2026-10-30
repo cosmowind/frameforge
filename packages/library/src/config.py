@@ -90,7 +90,7 @@ _DIM_REGISTRY = {
                    "operator_job", "operator_consent",
                    "age_range", "gender", "handedness", "gloves", "workforce_type",
                    "role_experience", "task_experience",
-                   "collection_hours_today", "collection_experience_days",
+                   "recording_hours_today", "recording_experience_days",
                    "hand_size_cm", "notes"],
         "key": "id",
         "create_if_missing": True,
@@ -172,8 +172,8 @@ UPLOAD_TEMPLATE_DEFAULTS = {
     "workforce_type": "",
     "role_experience": "",
     "task_experience": "",
-    "collection_hours_today": "",
-    "collection_experience_days": "",
+    "recording_hours_today": "",
+    "recording_experience_days": "",
     "hand_size_cm": "",
 }
 
@@ -200,8 +200,8 @@ UPLOAD_TEMPLATE_LABELS = {
     "workforce_type": "Workforce Type *",
     "role_experience": "Role Experience (months/years)",
     "task_experience": "Task Experience (months/years)",
-    "collection_hours_today": "Collection Hours Today",
-    "collection_experience_days": "Collection Experience Days",
+    "recording_hours_today": "Recording Hours Today",
+    "recording_experience_days": "Recording Experience Days",
     "hand_size_cm": "Hand Size (cm)",
     "source_device": "Source Device",
 }

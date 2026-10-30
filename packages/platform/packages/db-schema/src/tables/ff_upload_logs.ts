@@ -1,10 +1,10 @@
 // T9 — 上传日志（partner + backup + quark 三目标）
 import { uuid, text, integer, timestamp, index } from 'drizzle-orm/pg-core'
-import { vumSchema } from '../schema'
+import { ffSchema } from '../schema'
 import { uploadTargetEnum, uploadAdapterEnum, uploadStatusEnum } from '../enums'
 import { videoRecords } from './ff_video_records'
 
-export const uploadLogs = vumSchema.table(
+export const uploadLogs = ffSchema.table(
   'ff_upload_logs',
   {
     id: uuid('id').primaryKey().defaultRandom(),

@@ -1,10 +1,10 @@
 // T0 — 设备类型字典（plan2 核心：D10 设备适配可扩展）
 import { uuid, text, boolean, integer, timestamp, index, uniqueIndex } from 'drizzle-orm/pg-core'
-import { vumSchema } from '../schema'
+import { ffSchema } from '../schema'
 import { sessionNamingEnum, previewEngineEnum, uploadPrepEnum } from '../enums'
 import { users } from './ff_users'
 
-export const deviceTypes = vumSchema.table(
+export const deviceTypes = ffSchema.table(
   'ff_device_types',
   {
     id: uuid('id').primaryKey().defaultRandom(),

@@ -186,13 +186,13 @@ FIELD_SELECTORS: dict[str, list[str]] = {
         "input[placeholder='从事该具体任务的月数或年数']",
         "input[data-field='task_experience']",
     ],
-    "collection_hours_today": [
+    "recording_hours_today": [
         "input[placeholder='当天录制的小时数']",
-        "input[data-field='collection_hours_today']",
+        "input[data-field='recording_hours_today']",
     ],
-    "collection_experience_days": [
+    "recording_experience_days": [
         "input[placeholder='此前累计接入天数']",
-        "input[data-field='collection_experience_days']",
+        "input[data-field='recording_experience_days']",
     ],
     "hand_size_cm": [
         "input[placeholder='手掌/手指跨度测量(cm)']",
@@ -225,8 +225,8 @@ FIELD_LABELS: dict[str, str] = {
     "workforce_type": "劳动力类型",
     "role_experience": "岗位经验",
     "task_experience": "任务经验",
-    "collection_hours_today": "录制时长",
-    "collection_experience_days": "累计天数",
+    "recording_hours_today": "录制时长",
+    "recording_experience_days": "累计天数",
     "hand_size_cm": "手部尺寸",
 }
 
@@ -397,8 +397,8 @@ FILL_ORDER: list[str] = [
     # ── Experience & other ──
     "role_experience",
     "task_experience",
-    "collection_hours_today",
-    "collection_experience_days",
+    "recording_hours_today",
+    "recording_experience_days",
     "hand_size_cm",
     # ── Source tracking ──
     "source_device",
@@ -4049,10 +4049,10 @@ def _build_template_from_row(row: dict, idx: int) -> dict:
                 template["role_experience"] = cinfo["role_experience"]
             if cinfo.get("task_experience"):
                 template["task_experience"] = cinfo["task_experience"]
-            if cinfo.get("collection_hours_today"):
-                template["collection_hours_today"] = cinfo["collection_hours_today"]
-            if cinfo.get("collection_experience_days"):
-                template["collection_experience_days"] = cinfo["collection_experience_days"]
+            if cinfo.get("recording_hours_today"):
+                template["recording_hours_today"] = cinfo["recording_hours_today"]
+            if cinfo.get("recording_experience_days"):
+                template["recording_experience_days"] = cinfo["recording_experience_days"]
             if cinfo.get("hand_size_cm"):
                 template["hand_size_cm"] = cinfo["hand_size_cm"]
 

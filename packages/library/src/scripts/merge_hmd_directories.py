@@ -1,6 +1,6 @@
 """
-整合 hmd 和 umi1 目录到 hmd 目录下
-- 将 umi1 中的 session 移动到 hmd 目录
+整合 hmd 和 hmd1 目录到 hmd 目录下
+- 将 hmd1 中的 session 移动到 hmd 目录
 - 检查并删除重复的 session
 - 确保所有 session 都有正确的设备前缀
 """
@@ -44,28 +44,28 @@ def get_session_device_id(session_path):
     return None
 
 def merge_hmd_directories(base_dir):
-    """整合 hmd 和 umi1 目录"""
+    """整合 hmd 和 hmd1 目录"""
     hmd_dir = os.path.join(base_dir, "hmd")
-    umi1_dir = os.path.join(base_dir, "umi1")
+    hmd1_dir = os.path.join(base_dir, "hmd1")
     
     # 检查目录是否存在
     if not os.path.isdir(hmd_dir):
         print(f"hmd 目录不存在: {hmd_dir}")
         return
     
-    if not os.path.isdir(umi1_dir):
-        print(f"umi1 目录不存在: {umi1_dir}，无需整合")
+    if not os.path.isdir(hmd1_dir):
+        print(f"hmd1 目录不存在: {hmd1_dir}，无需整合")
         return
     
-    print(f"开始整合: {umi1_dir} → {hmd_dir}")
+    print(f"开始整合: {hmd1_dir} → {hmd_dir}")
     print("=" * 60)
     
-    # 遍历 umi1 目录下的所有 session
+    # 遍历 hmd1 目录下的所有 session
     moved_count = 0
     skipped_count = 0
     
-    for session_name in os.listdir(umi1_dir):
-        session_path = os.path.join(umi1_dir, session_name)
+    for session_name in os.listdir(hmd1_dir):
+        session_path = os.path.join(hmd1_dir, session_name)
         
         if not os.path.isdir(session_path):
             continue
@@ -111,15 +111,15 @@ def merge_hmd_directories(base_dir):
             print(f"移动失败: {session_name}: {e}")
             skipped_count += 1
     
-    # 尝试删除空的 umi1 目录
+    # 尝试删除空的 hmd1 目录
     try:
-        if not os.listdir(umi1_dir):
-            os.rmdir(umi1_dir)
-            print(f"\n已删除空目录: {umi1_dir}")
+        if not os.listdir(hmd1_dir):
+            os.rmdir(hmd1_dir)
+            print(f"\n已删除空目录: {hmd1_dir}")
         else:
-            print(f"\numi1 目录非空，保留: {umi1_dir}")
+            print(f"\nhmd1 目录非空，保留: {hmd1_dir}")
     except Exception as e:
-        print(f"删除 umi1 目录失败: {e}")
+        print(f"删除 hmd1 目录失败: {e}")
     
     print("\n" + "=" * 60)
     print(f"整合完成！移动: {moved_count} 个，跳过: {skipped_count} 个")
@@ -157,6 +157,6 @@ def compare_sessions(session1_path, session2_path):
         return False
 
 if __name__ == "__main__":
-    # 整合 /media\0621 目录下的 hmd 和 umi1
+    # 整合 /media\0621 目录下的 hmd 和 hmd1
     base_dir = r"/media\0621"
     merge_hmd_directories(base_dir)

@@ -126,7 +126,7 @@ function findPackets(buf) {
   return out;
 }
 
-function parseUmi(buf) {
+function parseHmd(buf) {
   const packets = findPackets(buf);
   const nals = [];
   let imu = 0, video = 0, skipped = 0;
@@ -335,7 +335,7 @@ async function loadFile(file) {
   } catch (e) { showErr('读取失败: ' + e.message); closeFile(); return; }
 
   const t0 = performance.now();
-  parsed = parseUmi(fileBuf);
+  parsed = parseHmd(fileBuf);
   const ms = (performance.now() - t0).toFixed(0);
 
   $('hud').textContent = `${file.name} · ${(fileBuf.length/1024/1024).toFixed(0)} MB · ${parsed.video} 视频包 · ${parsed.imu} IMU · 解析 ${ms} ms`;

@@ -1,8 +1,8 @@
 // T1 — 区域字典
 import { uuid, text, boolean, timestamp, uniqueIndex } from 'drizzle-orm/pg-core'
-import { vumSchema } from '../schema'
+import { ffSchema } from '../schema'
 
-export const regions = vumSchema.table(
+export const regions = ffSchema.table(
   'ff_regions',
   {
     id: uuid('id').primaryKey().defaultRandom(),

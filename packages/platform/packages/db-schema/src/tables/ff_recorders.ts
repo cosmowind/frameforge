@@ -1,10 +1,10 @@
 // T3 — 录制员
 import { uuid, text, boolean, integer, timestamp, uniqueIndex, index } from 'drizzle-orm/pg-core'
-import { vumSchema } from '../schema'
+import { ffSchema } from '../schema'
 import { regions } from './ff_regions'
 import { users } from './ff_users'
 
-export const recorders = vumSchema.table(
+export const recorders = ffSchema.table(
   'ff_recorders',
   {
     id: uuid('id').primaryKey().defaultRandom(),

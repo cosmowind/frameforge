@@ -9,10 +9,10 @@ import { GenericAviRecordingAdapter } from './device/generic-avi-recording'
 
 export function buildAdapterRegistry(): AdapterRegistry {
   const reg: AdapterRegistry = new Map()
-  reg.set(DjiGoproDcimAdapter.code, new DjiGoproDcimAdapter())
-  reg.set(HeadMountedHmdAdapter.code, new HeadMountedHmdAdapter())
-  reg.set(GoproSessionMcapAdapter.code, new GoproSessionMcapAdapter())
-  reg.set(GenericAviRecordingAdapter.code, new GenericAviRecordingAdapter())
+  reg.set(DjiGoproDcimAdapter.code, DjiGoproDcimAdapter)
+  reg.set(HeadMountedHmdAdapter.code, HeadMountedHmdAdapter)
+  reg.set(GoproSessionMcapAdapter.code, GoproSessionMcapAdapter)
+  reg.set(GenericAviRecordingAdapter.code, GenericAviRecordingAdapter)
   return reg
 }
 
