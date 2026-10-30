@@ -40,7 +40,7 @@
 | 设备 | 工时 | 风险 |
 |---|---|---|
 | **DjiGoproDcimAdapter** | 2-3 天 | 低 — fluent-ffmpeg 读 metadata 即可 |
-| **Generic AVIRecordingAdapter** | 2-3 天 | 低 — ffmpeg concat 成熟 |
+| **GenericAviRecordingAdapter** | 2-3 天 | 低 — ffmpeg concat 成熟 |
 | **GoproSessionMcapAdapter** | 3-5 天 | 中 — MCAP 提取视频需 ROS 工具链 |
 | **HeadMountedHmdAdapter** | 5-10 天 | **高** — HMD decoder 需对接供应商；降级方案：只上传原 .hmd + .json |
 

@@ -8,7 +8,7 @@ import { queryCrossSchema } from '@/lib/db'
 import { fail, handleApiError, ApiError } from '@/lib/api-error'
 
 const Body = z.object({
-  deviceCode: z.enum(['dji_gopro_dcim', 'head_mounted_hmd', 'gopro_session_mcap', 'generic-avi_recording']),
+  deviceCode: z.enum(['dji_gopro_dcim', 'head_mounted_hmd', 'gopro_session_mcap', 'generic_avi_recording']),
   path: z.string().min(1).max(2000),
   envId: z.string().min(1).max(100),
   recorderId: z.string().min(1).max(100),
@@ -25,7 +25,7 @@ const DEVICE_META: Record<string, { captureMode: string; fileType: string }> = {
   dji_gopro_dcim: { captureMode: 'single', fileType: 'mp4' },
   head_mounted_hmd: { captureMode: 'stereo', fileType: 'hmd' },
   gopro_session_mcap: { captureMode: 'depth', fileType: 'mcap' },
-  generic-avi_recording: { captureMode: 'multi', fileType: 'avi' },
+  generic_avi_recording: { captureMode: 'multi', fileType: 'avi' },
 }
 
 export const dynamic = 'force-dynamic'
@@ -146,7 +146,7 @@ export async function GET() {
           { code: 'dji_gopro_dcim', label: '大疆 GoPro DCIM（单 mp4）' },
           { code: 'head_mounted_hmd', label: '头戴 HMD（hmd + json，stereo）' },
           { code: 'gopro_session_mcap', label: 'GoPro Session MCAP（mcap，depth）' },
-          { code: 'generic-avi_recording', label: 'Generic AVI 录制（多 avi）' },
+          { code: 'generic_avi_recording', label: 'Generic AVI 录制（多 avi）' },
         ],
         environments: envs,
         recorders: cs,

@@ -95,7 +95,7 @@ export const DjiGoproDcimAdapter: DeviceAdapter = {
 
 **MVP 降级**：如 MCAP 不含视频轨道，只上传原 `.mcap`
 
-## D. Generic AVIRecordingAdapter（多 AVI）
+## D. GenericAviRecordingAdapter（多 AVI）
 
 - **scan**：列 `recordings/<date>_<timestamp>/` 下所有 `.avi`（按 part 编号排序）
 - **parseMetadata**：读所有 AVI 时长（≤ 3min × N）合并到 session 级别

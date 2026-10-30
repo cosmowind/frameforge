@@ -1,4 +1,4 @@
-// D. Generic AVIRecordingAdapter（plan2 §5.4 — 多 AVI）
+// D. GenericAviRecordingAdapter（plan2 §5.4 — 多 AVI）
 // scan: 列 recordings/<date>_<timestamp>/ 下所有 .avi + .idx
 // parseMetadata: 读 N 个 AVI 时长合并
 // getPreviewHandle: native（前端 JS 控制 <video> 顺序切换）
@@ -9,7 +9,7 @@ import path from 'node:path'
 import type { DeviceAdapter, DeviceMetadata, PreviewHandle } from '@ff/shared/adapters'
 import type { VideoUnit, UploadFileRef } from '@ff/shared/schemas'
 
-export const Generic AVIRecordingAdapter: DeviceAdapter = {
+export const GenericAviRecordingAdapter: DeviceAdapter = {
   code: 'generic-avi-recording',
 
   async scan(rootPath: string): Promise<VideoUnit[]> {

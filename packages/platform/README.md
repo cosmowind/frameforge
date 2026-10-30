@@ -123,7 +123,7 @@ pnpm dev                    # uploader (3001) + admin (3002) + worker (3010)
 
 - **Phase 0 — 工程骨架**（1-2 周，当前）
 - **Phase 1 — Uploader MVP + 设备适配**（3-4 周）
-  - DjiGoproDcim / Generic AVIRecording / GoproSessionMcap Adapter 先做
+  - DjiGoproDcim / GenericAviRecording / GoproSessionMcap Adapter 先做
   - HeadMountedUmi 待 HMD decoder 确认
 - **Phase 2 — Admin MVP + 健壮性**（2 周）
 - **Phase 3 — 资源包 + 异构优化**（2 周）

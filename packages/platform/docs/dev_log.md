@@ -17,7 +17,7 @@
 | 5 | infra docker | `infra/docker/web.Dockerfile` + `infra/docker/worker.Dockerfile` 多阶段 |
 | 6 | packages/shared | constants (4 设备 code + 路由 + 状态) + types (Clerk claims) + 5 个 Zod schema + DeviceAdapter 接口 + utils (logger/paths) |
 | 7 | packages/db-schema | schema.ts (pgSchema 'ff') + enums.ts (11 enum) + 15 张 ff_* 表 + migrations/v0_initial_v2.sql + scripts/migrate.ts + scripts/seed.ts |
-| 8 | packages/adapters | registry.ts + 4 设备 Adapter 占位实现（DjiGoproDcim / HeadMountedUmi / GoproSessionMcap / Generic AVIRecording）|
+| 8 | packages/adapters | registry.ts + 4 设备 Adapter 占位实现（DjiGoproDcim / HeadMountedUmi / GoproSessionMcap / GenericAviRecording）|
 | 9 | apps/web-uploader | Next.js 15 App Router + Clerk middleware + 4 step 占位 + sign-in/sign-up + localStorage helper + api health route |
 | 10 | apps/web-admin | Next.js 15 App Router + Clerk middleware + Dashboard + 7 菜单占位 + sign-in/sign-up |
 | 11 | apps/worker | Node + BullMQ 4 queue (device-scan / preview / pull / backup) + ioredis + HTTP /health + SIGTERM graceful |
@@ -525,7 +525,7 @@ curl 'http://127.0.0.1:3002/api/admin/operators?includeInactive=true'
 
 **step1-scan 真实功能**：
 
-- 4 设备卡单选（DjiGoPro / HeadMountedUmi / GoproSessionMcap / Generic AVIRecording）
+- 4 设备卡单选（DjiGoPro / HeadMountedUmi / GoproSessionMcap / GenericAviRecording）
 - 「选择文件夹」按钮 → `<input type="file" webkitdirectory multiple>`（手机/Android Chrome/iOS Safari 13.4+ 全支持）
 - JS 遍历 FileList，按 `webkitRelativePath` 建虚拟目录树
 - 4 套 pattern 匹配：

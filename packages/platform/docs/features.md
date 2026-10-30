@@ -50,7 +50,7 @@
 - [x] `DjiGoproDcimAdapter`（最简单，MP4 直传）
 - [x] `HeadMountedHmdAdapter`（HMD 私有格式 placeholder）
 - [x] `GoproSessionMcapAdapter`（MCAP placeholder）
-- [x] `Generic AVIRecordingAdapter`（多 AVI placeholder）
+- [x] `GenericAviRecordingAdapter`（多 AVI placeholder）
 - [x] Registry 通过 `buildAdapterRegistry()` 索引
 
 ### WCS v2.0 文档
