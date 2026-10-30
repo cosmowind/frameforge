@@ -35,7 +35,12 @@ jobs:
 
       - run: pnpm typecheck
 
+      # The build never connects to a database; this placeholder only keeps
+      # the route modules from failing their start-up check.
       - run: pnpm build
+        env:
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+          DATABASE_SCHEMA: ff
 
   python:
     name: python (syntax + payload validity)

@@ -3,7 +3,10 @@
 import { Pool } from 'pg'
 
 const DATABASE_URL = process.env.DATABASE_URL
-if (!DATABASE_URL) {
+// `next build` evaluates route modules, so a missing DATABASE_URL must not
+// fail the build -- only actual requests should.
+const isBuildPhase = process.env.NEXT_PHASE === 'phase-production-build'
+if (!DATABASE_URL && !isBuildPhase) {
   throw new Error('DATABASE_URL is required (set in apps/web-admin/.env)')
 }
 const SCHEMA = process.env.DATABASE_SCHEMA ?? 'ff'
