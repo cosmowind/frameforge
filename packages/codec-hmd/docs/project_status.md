@@ -45,9 +45,6 @@
 
 | 项 | 原因 |
 |----|------|
-| frameforge 上传器 | prompt.txt 明确"先不用适配" |
-| 旧 CSV 字段迁移到 SQLite 的回退路径 | prompt.txt 决策"CSV 仅导入导出"，不需要双轨 |
-| SD 卡自动复制 | prompt.txt 标"低优先级" |
 
 ---
 
@@ -67,7 +64,6 @@
 
 | 文件 | 用途 | 状态 |
 |------|------|------|
-| `prompt.txt` | 用户原始需求 | 📌 不动 |
 | `wcs-manifest.yaml` | WCS 中央索引 | 🆕 2026-06-16 |
 | `docs/dev_plan.md` | 路线图 | 🆕 2026-06-16 |
 | `docs/project_status.md` | 本文件 | 🆕 2026-06-16 |

@@ -116,9 +116,7 @@ ff/
 │  ├── CODING_STANDARDS.md
 │  ├── workflow.md
 │  ├── data-dictionary.md             ← 新（plan2 §3 全字段 + ER 图）
-│  ├── storage-architecture.md        ← 新（plan2 §6 三层 + SCF）
 │  ├── device-adapters.md             ← 新（plan2 §5 Adapter + 扩展）
-│  └── prompt.txt
 │
 ├── docker-compose.yml                必用：PG + Redis + web + worker
 ├── wcs-manifest.yaml                 WCS v2.0 中央索引

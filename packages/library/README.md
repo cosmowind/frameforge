@@ -95,7 +95,6 @@
 
 ### 9. 🧹 上传后自动清理
 - `_upload_now.py` 检测到 `vendor-upload-pkg/upload.py` 上传成功后，自动删除本地分出来的 parts
-- （详见 `prompt.txt` 描述）
 
 ### 10. 🗓 录入日期保护（双保险）
 - **前端**：`scan_date` 单元格默认 `readonly`（灰底），`✏️` 按钮 → 解锁/重锁
@@ -379,7 +378,6 @@ python src/scripts/test_scan.py
 | [`docs/features.md`](docs/features.md) | 已实现能力索引 |
 | [`docs/CODING_STANDARDS.md`](docs/CODING_STANDARDS.md) | 代码规范纲领 |
 | [`docs/workflow.md`](docs/workflow.md) | 执行流程 + 质量门禁 |
-| [`docs/prompt.txt`](docs/prompt.txt) | 用户原始需求 |
 
 ---
 

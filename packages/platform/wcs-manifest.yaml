@@ -23,8 +23,6 @@ agents:
   on_bug_investigation:
     - docs/error_book.md
     - docs/dev_log.md
-  on_storage_decisions:
-    - docs/storage-architecture.md
   on_device_adapter:
     - docs/device-adapters.md
 
@@ -37,9 +35,7 @@ doc_index:
   features: docs/features.md
   coding_standards: docs/CODING_STANDARDS.md
   workflow: docs/workflow.md
-  prompt: docs/prompt.txt
   data_dictionary: docs/data-dictionary.md
-  storage_architecture: docs/storage-architecture.md
   device_adapters: docs/device-adapters.md
   v2_forms_spec: docs/v2-forms-spec.md  # v2 表单结构事实层（单一来源；2026-07-15 新增）
   deploy_production: docs/deploy-production.md  # 生产部署手册（OpenCloudOS 9 + 宝塔 + pm2；2026-07-15 新增）

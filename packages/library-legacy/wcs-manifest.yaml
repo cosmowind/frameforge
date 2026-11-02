@@ -94,12 +94,6 @@ documents:
     tier: 2
     update_trigger: 流程变更
 
-  - path: docs/prompt.txt
-    purpose: 用户原始需求 + 协作约束
-    size_kb: 2
-    tier: 3
-    update_trigger: 协作约束变化
-
   # ── 项目特定文档（非 WCS 基线，存档参考） ──
   - path: docs/EXPORT.md
     purpose: 导出 TXT 功能旧文档（归档）

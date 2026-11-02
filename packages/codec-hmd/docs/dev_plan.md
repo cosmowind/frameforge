@@ -1,11 +1,9 @@
 # DEV PLAN — codec-hmd → 并入 video-sort-package
 
-> **2026-06-16** 重构启动。prompt.txt 提的"hmd 远不如预期 + 与 video-sort-package 合并"是一次大重构，不是小修。
 > 当前文件状态由 `.claude/` 上下文捕获。本文件是路线图 + 任务状态 + 决策记录。
 
 ---
 
-## 🎯 重构目标（prompt.txt 拆解）
 
 | # | 目标 | 优先级 | 状态 |
 |---|------|--------|------|
@@ -19,7 +17,6 @@
 | G8 | 自动扫描 HMD 视频目录（一文件夹 = 一视频） | 高 | 待启动 |
 | G9 | SD 卡自动复制 HMD 到工作盘 | 低 | 排后 |
 | G10 | HMD 元数据（时长、创建时间、metadata.json）写入 CSV | 高 | 待启动 |
-| G11 | 上传器适配 frameforge 后台 | **暂缓** | prompt.txt 明确说先不动 |
 
 ---
 
@@ -30,7 +27,6 @@
 | 子系统边界 | **整体并入 video-sort-package** | 双仓并存 / 子目录 | 单入口 / 共用 CSV / 共用启动器 |
 | 存储介质 | **SQLite**（CSV 仅导入导出） | 纯 CSV + DAL 抽象 | 5+ 表的 join / 事务 / 索引；DAL 抽象也能换但工作量更大 |
 | 双目方案 | **两条独立 HEVC 流**（按用户拍板） | SBS / 上下分 / 帧交替 | 待 Task #16 探测验证后再定具体实现 |
-| SD 卡自动化 | **低优先级** | 优先做 | prompt.txt 明确"低优先级" |
 
 ---
 
@@ -59,7 +55,6 @@
 | 14 | 文档与代码同步 | ⏳ 待启动 | 13 |
 
 > ⚠️ 决策变更影响：
-> 1. **存储选 SQLite** → Task #8 标题要改（"四张 CSV 表" → "四张 SQLite 表 + 导入导出 CSV 入口"），原 prompt.txt 说"暂定 CSV"被推翻
 > 2. **整体并入 video-sort-package** → codec-hmd 仓库的 docs/ 在并入完成后转入历史；codec-hmd 仓库本身会被打 deprecated 标签
 
 ---
@@ -172,4 +167,3 @@ db.py:? SQLite schema (recorders/devices/sd_cards/task_keywords/recordable_tasks
 2. **双目方案不确定**：用户拍板"双流"但实测只有 1 个视频 type，需要 Task #16 探测
 3. **SQLite 切换破坏现有 verify 脚本**：video-sort-package/verify_*.js/.py 直读 CSV，新版要走 SQLite，需要更新
 4. **数据迁移**：现有 video_manager.csv 11 行数据，schema 扩展（加 device_id/recorder_id/task_code）后需一次迁移
-5. **frameforge 上传器集成未做**：prompt.txt 明确"先不用适配"，但相关代码不能删，标 deprecated

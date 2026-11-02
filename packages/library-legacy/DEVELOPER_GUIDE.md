@@ -300,4 +300,3 @@ renderTable();
 | `OPTIMIZATIONS.md` | 20 项代码优化建议（按 ROI 排序） |
 | `docs/EXPORT.md` | 导出 TXT 详细文档 |
 | `docs/UPLOAD_DEVPLAN.md` | 上传功能开发计划（含 publish.example.com 流程）|
-| `prompt.txt` | 项目原始需求描述 |

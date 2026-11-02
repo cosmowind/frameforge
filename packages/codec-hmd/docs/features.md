@@ -88,5 +88,4 @@
 
 ## ❌ 暂不实现
 
-- **F16. frameforge 上传器集成** — prompt.txt 明确"先不用适配"
 - **F17. 自动翻译（中英）** — video-sort-package 已删除

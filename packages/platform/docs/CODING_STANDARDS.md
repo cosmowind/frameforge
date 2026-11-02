@@ -95,5 +95,4 @@
 - 实现记录 → `docs/dev_log.md`
 - 提交流程 → `docs/workflow.md`
 - 数据表字段 → `docs/data-dictionary.md`
-- 存储架构 → `docs/storage-architecture.md`
 - Adapter 扩展 → `docs/device-adapters.md`

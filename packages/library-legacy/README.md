@@ -86,7 +86,6 @@
 
 ### 8. 🧹 上传后自动清理
 - `_upload_now.py` 检测到 `vendor-upload-pkg/upload.py` 上传成功后，自动删除本地分出来的 parts
-- （详见 `prompt.txt` 描述）
 
 ### 9. 🗓 录入日期保护（双保险）
 - **前端**：`scan_date` 单元格默认 `readonly`（灰底），`✏️` 按钮 → 解锁/重锁
@@ -217,7 +216,6 @@ video-sort-package/
 ├── verify_sort.js           # 排序 e2e 测试
 ├── video_manager.csv        # 视频数据主表（运行时生成；**已被 .gitignore 排除**）
 ├── config.json              # 列配置 + 设备监控配置（**无凭据**）
-├── prompt.txt               # 项目需求原始描述
 ├── requirements.txt         # flask / werkzeug / requests
 ├── 启动视频管理.bat          # Windows 一键启动
 ├── 视频管理.spec             # PyInstaller 配置
@@ -319,7 +317,6 @@ python test_scan.py
 | [`docs/features.md`](docs/features.md) | 已实现能力索引 |
 | [`docs/CODING_STANDARDS.md`](docs/CODING_STANDARDS.md) | 代码规范纲领 |
 | [`docs/workflow.md`](docs/workflow.md) | 执行流程 + 质量门禁 |
-| [`docs/prompt.txt`](docs/prompt.txt) | 用户原始需求 |
 
 ---
 

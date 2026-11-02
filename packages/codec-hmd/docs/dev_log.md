@@ -11,7 +11,6 @@
 
 ### 决策（写入 docs/dev_plan.md）
 - 整体并入 video-sort-package（用户拍板）
-- 存储选 SQLite，CSV 仅导入导出（推翻 prompt.txt "暂定 CSV"）
 - 双目方案：用户拍板"两条独立 HEVC 流"——但实测 session_00000/part_000.hmd 只有一个连续 HEVC 流，必须先探测（Task #16）再实现
 
 ### WCS 基线文档创建

@@ -507,7 +507,7 @@ _DIM_UI_HIDDEN.environments: ['environment_description_en']
 **变更**：
 - 新建 `wcs-manifest.yaml`（中央索引）
 - 新建 `docs/{project_status, structure, dev_plan, dev_log, error_book, features, CODING_STANDARDS, workflow}.md`（10 项基线）
-- README.md 已存在，跳过新建；`docs/prompt.txt` 已存在，归档
+- README.md 已存在，跳过新建；原始需求说明 已存在，归档
 
 **验证**：通过 `Read` 工具确认所有文件可加载；manifest 与 docs 路径一致。
 

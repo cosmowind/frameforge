@@ -8,7 +8,6 @@ a = Analysis(
         ('templates', 'templates'),
         ('docs', 'docs'),
         ('config.json', '.'),
-        ('prompt.txt', '.'),
         ('requirements.txt', '.'),
         # vendor-upload-pkg 核心文件
         ('vendor-upload-pkg/upload.py', 'vendor-upload-pkg'),

@@ -8,7 +8,6 @@
 codec-hmd/
 ├── wcs-manifest.yaml           # WCS 中央索引（v2.0 必填）
 ├── README.md                   # 入口（待写）
-├── prompt.txt                  # 用户原始需求
 ├── docs/                       # WCS 基线文档
 │   ├── dev_plan.md
 │   ├── dev_log.md

@@ -56,8 +56,8 @@
 ### WCS v2.0 文档
 
 - [x] wcs-manifest.yaml 中央索引
-- [x] 9 基础 docs (project_status/structure/dev_plan/dev_log/error_book/features/CODING_STANDARDS/workflow/prompt)
-- [x] 3 plan2 新增 docs（data-dictionary / storage-architecture / device-adapters）
+- [x] 8 基础 docs (project_status/structure/dev_plan/dev_log/error_book/features/CODING_STANDARDS/workflow)
+- [x] 3 plan2 新增 docs（data-dictionary / device-adapters）
 - [x] README + .env.example + LICENSE
 
 ### 数据库（Drizzle 0.31）

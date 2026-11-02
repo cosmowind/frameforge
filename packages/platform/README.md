@@ -97,9 +97,7 @@ pnpm dev                    # uploader (3001) + admin (3002) + worker (3010)
 | [docs/CODING_STANDARDS.md](docs/CODING_STANDARDS.md) | 代码规范纲领 |
 | [docs/workflow.md](docs/workflow.md) | 质量门禁 + 提交流程 |
 | [docs/data-dictionary.md](docs/data-dictionary.md) | **新** 15 张表字段详解 + ER 图 |
-| [docs/storage-architecture.md](docs/storage-architecture.md) | **新** COS + 本地硬盘 + 夸克 三层 + SCF |
 | [docs/device-adapters.md](docs/device-adapters.md) | **新** 4 设备 Adapter 实现 + 扩展指南 |
-| [docs/prompt.txt](docs/prompt.txt) | 用户原始需求 |
 
 ## 与 v1（Fastify + self-JWT）的关键差异
 

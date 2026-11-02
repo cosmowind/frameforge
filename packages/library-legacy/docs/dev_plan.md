@@ -50,7 +50,6 @@
 
 ## ⏸ 暂缓（等上游规范）
 
-- [ ] **深度上传器适配**：等 frameforge 后台端口规范（prompt.txt 明确"先不用适配"）
 - [ ] **CSV → SQLite/MySQL 迁移**：等数据规模突破 1000 行 + 复杂查询需求
 - [ ] **自动重命名 mmdd-DevID-RecID-TaskCode**：等维表系统稳定后做
 
@@ -110,7 +109,7 @@
 | HMD duration 不可靠（metadata.frame_counts 为空） | 客户端首次打开时回填；服务端兜底用 part_000 头切片 |
 | Flask debug reloader 子进程残留 | 已知问题，运维时手动 kill PID |
 | 并排第二 session 内存翻倍 | 按需加载（点"并排"才 fetch） |
-| 上传器适配卡住 frameforge 端口规范 | 暂缓，明确 prompt |
+| 上传器适配卡住 frameforge 端口规范 | 暂缓，明确需求 |
 
 ---
 

@@ -12,7 +12,7 @@
 |---|---|---|
 | 入口 | `python app.py` → http://localhost:5000 | 也可 `python run.py` 或 `启动视频管理.bat` |
 | 视频格式 | MP4（FFprobe） + HMD（WebCodecs HEVC） | 单目流；真双目=两独立设备的两个 session |
-| 数据存储 | `video_manager.csv`（20 列）+ `config.json` | 未来可迁 SQLite/MySQL（prompt 标记） |
+| 数据存储 | `video_manager.csv`（20 列）+ `config.json` | 未来可迁 SQLite/MySQL（需求标记） |
 | 元数据 | 录制人 / 设备编号 / 任务 ID / 时长 | 部分字段已加，CSV 写入兼容 13→20 |
 | 命名 | 原文件路径；自动重命名待 PR | mmdd-DevID-RecID-TaskCode 模式 |
 | 上传器 | 旧逻辑保留（不主动适配） | 等待 frameforge 后台端口规范 |

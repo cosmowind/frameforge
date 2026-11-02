@@ -39,7 +39,7 @@ curl -sf :3002/api/health       # admin 200
 curl -sf :3010/health           # worker 200
 
 # F. WCS 文档完整性
-ls docs/{project_status,structure,dev_plan,dev_log,error_book,features,CODING_STANDARDS,workflow,prompt,data-dictionary,storage-architecture,device-adapters}.md
+ls docs/{project_status,structure,dev_plan,dev_log,error_book,features,CODING_STANDARDS,workflow,data-dictionary,device-adapters}.md
 grep -oE 'docs/[a-z_-]+\.md' README.md | xargs -I{} ls {}
 ```
 

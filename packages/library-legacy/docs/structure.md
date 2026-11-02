@@ -13,7 +13,6 @@ video-sort-package/
 ├── video_manager.csv            # 主数据（20 列）
 ├── wcs-manifest.yaml            # WCS 中央索引（v2.0）
 ├── README.md                    # 项目入口 + 快速上手
-├── prompt.txt                   # 用户原始需求
 ├── requirements.txt             # Python 依赖
 ├── run.py                       # 启动封装
 ├── launcher.py                  # launcher 入口

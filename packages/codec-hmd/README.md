@@ -47,7 +47,6 @@ console.log(r.imu.length);     // IMU 样本数
 | 编码规范 | [docs/CODING_STANDARDS.md](docs/CODING_STANDARDS.md) |
 | 执行流程 | [docs/workflow.md](docs/workflow.md) |
 | 实现记录 | [docs/dev_log.md](docs/dev_log.md) |
-| 用户原始需求 | [prompt.txt](prompt.txt) |
 
 ## 依赖
 

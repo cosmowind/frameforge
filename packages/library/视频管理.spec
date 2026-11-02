@@ -9,7 +9,6 @@ a = Analysis(
         ('src/static', 'static'),
         ('docs', 'docs'),
         ('runtime/data/config.json', '.'),
-        ('runtime/data/prompt.txt', '.'),
         ('requirements.txt', '.'),
         # vendor-upload-pkg 核心文件（已移至 src/）
         ('src/vendor-upload-pkg/upload.py', 'vendor-upload-pkg'),

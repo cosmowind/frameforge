@@ -68,12 +68,6 @@ docs:
     update_trigger: 流程变更
     load_when: [new_feature, handoff]
 
-  - id: prompt_txt
-    path: prompt.txt
-    purpose: 用户原始需求
-    update_trigger: 用户重写 prompt
-    load_when: [new_feature, audit]
-
 # ─────────────────────────────────────────────
 # 2. 任务类型 → 需要加载的 docs
 # ─────────────────────────────────────────────
