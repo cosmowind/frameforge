@@ -74,7 +74,7 @@ pnpm db:migrate && pnpm db:seed
 - ❌ Clerk webhook → ff_users 同步
 - ❌ COS 直传 SDK 集成
 - ❌ SCF 函数（部署在腾讯云）
-- ❌ Puller 容器（家用 Linux 服务器）
+- ❌ Puller 容器（自建 Linux 服务器）
 - ❌ 域名 + HTTPS + CDN
 - ❌ 飞书告警
 
